@@ -298,15 +298,6 @@ img {
   z-index: 100003 !important;
 }
 
-/* AI模型配置对话框专用层级 - 确保在用户设置页面之上 */
-.z-model-config-backdrop {
-  z-index: 100010 !important;
-}
-
-.z-model-config-modal {
-  z-index: 100011 !important;
-}
-
 /* 模型配置对话框滚动条样式 */
 .model-config-modal-content {
   /* 自定义滚动条样式 */
