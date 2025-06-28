@@ -21,7 +21,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, dispatch } = useApp();
   const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const toggleSidebar = () => {
     dispatch({ type: 'TOGGLE_SIDEBAR' });
@@ -95,8 +94,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
                   onMouseEnter={() => setShowUserMenu(true)}
                   onMouseLeave={() => setShowUserMenu(false)}
-                  onMouseEnter={() => setShowUserMenu(true)}
-                  onMouseLeave={() => setShowUserMenu(false)}
                   title="用户菜单"
                 >
                   {/* 显示用户头像或默认图标 */}
@@ -114,12 +111,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 
                 {/* User Dropdown Menu */}
                 <div 
-                  className={`dropdown-base absolute right-0 top-full mt-2 w-48 transition-opacity ${
-                    showUserMenu ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                  }`}
-                  onMouseEnter={() => setShowUserMenu(true)}
-                  onMouseLeave={() => setShowUserMenu(false)}
-                >
                   className={`dropdown-base absolute right-0 top-full mt-2 w-48 transition-opacity ${
                     showUserMenu ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
                   }`}
