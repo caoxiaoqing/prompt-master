@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { 
+  Timer,
   User, 
   Mail, 
   Globe, 
@@ -50,6 +51,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   });
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [countdown, setCountdown] = useState(0);
 
   const animalEmojis = [
     '🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯',
@@ -91,6 +94,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const handleResetForm = () => {
     setFormData(initialFormData);
     setEmailVerificationSent(false);
+    setSaveState('idle');
   };
 
   const handleSaveProfile = async () => {
@@ -98,6 +102,29 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
 
     try {
       setLoading(true);
+      setSaveState('saving');
+      setCountdown(5);
+      
+      // 启动5秒倒计时
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      // 5秒超时处理
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          clearInterval(countdownInterval);
+          reject(new Error('TIMEOUT'));
+        }, 5000);
+      });
+      
+      // 实际的更新操作
       
       const updates: Partial<UserInfo> = {
         user_name: formData.user_name.trim(),
@@ -109,11 +136,29 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         updates.user_profile_pic = formData.user_profile_pic;
       }
 
-      await updateUserInfo(updates);
+      // 使用 Promise.race 来处理超时
+      await Promise.race([
+        updateUserInfo(updates),
+        timeoutPromise
+      ]);
+      
+      // 如果成功，清除倒计时并显示成功状态
+      clearInterval(countdownInterval);
+      setSaveState('success');
+      setCountdown(0);
       showNotification('success', '个人资料更新成功！');
+      
     } catch (error) {
       console.error('Profile update error:', error);
-      showNotification('error', '更新失败，请稍后重试');
+      
+      if (error.message === 'TIMEOUT') {
+        setSaveState('error');
+        showNotification('error', '由于网络原因保存失败，请稍后重试');
+      } else {
+        setSaveState('error');
+        showNotification('error', error.message || '更新失败，请稍后重试');
+      }
+      setCountdown(0);
     } finally {
       setLoading(false);
     }
@@ -122,6 +167,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   const handleEmailChange = async () => {
     if (!user || formData.email === user.email) return;
 
+    setSaveState('idle');
     try {
       setLoading(true);
       // Here you would implement email change logic with Supabase
@@ -144,6 +190,16 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     formData.user_profile_pic !== (userInfo?.user_profile_pic || '') ||
     formData.language !== (userInfo?.language || 'zh-CN') ||
     formData.timezone !== (userInfo?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
+
+  // 获取保存按钮的文本和样式
+  const getSaveButtonContent = () => {
+    if (saveState === 'saving') {
+      return { text: `保存中... (${countdown}s)`, icon: Timer, disabled: true };
+    }
+    if (saveState === 'success') return { text: '保存成功', icon: Check, disabled: true };
+    if (saveState === 'error') return { text: '保存失败', icon: AlertCircle, disabled: false };
+    return { text: '保存更改', icon: Save, disabled: !isFormValid || !hasChanges };
+  };
 
   return (
     <motion.div
@@ -295,7 +351,7 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         <button
           onClick={handleResetForm}
           disabled={!hasChanges || loading}
-          className="flex items-center space-x-2 px-6 py-3 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="flex items-center space-x-2 px-6 py-3 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
         >
           <RotateCcw size={16} />
           <span>取消</span>
@@ -303,18 +359,29 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         <button
           onClick={handleSaveProfile}
           disabled={!isFormValid || !hasChanges || loading}
-          className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors ${
-            !isFormValid || !hasChanges || loading
+          className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-all duration-200 ${
+            getSaveButtonContent().disabled
               ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              : saveState === 'success'
+              ? 'bg-green-600 text-white'
+              : saveState === 'error'
+              ? 'bg-red-600 text-white hover:bg-red-700'
+              : saveState === 'saving'
+              ? 'bg-blue-600 text-white cursor-wait'
               : 'bg-blue-600 text-white hover:bg-blue-700'
           }`}
         >
-          {loading ? (
-            <Loader2 size={16} className="animate-spin" />
+          {saveState === 'saving' ? (
+            <>
+              <Loader2 size={16} className="animate-spin" />
+              <span>{getSaveButtonContent().text}</span>
+            </>
           ) : (
-            <Save size={16} />
+            <>
+              <getSaveButtonContent().icon size={16} />
+              <span>{getSaveButtonContent().text}</span>
+            </>
           )}
-          <span>{loading ? '保存中...' : '保存更改'}</span>
         </button>
       </div>
     </motion.div>

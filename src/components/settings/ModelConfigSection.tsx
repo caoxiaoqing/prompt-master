@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
+  Timer,
   Plus, 
   Edit3, 
   Trash2, 
@@ -56,6 +57,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
   const [showApiKey, setShowApiKey] = useState<{ [key: string]: boolean }>({});
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [countdown, setCountdown] = useState(0);
 
   // Load models from userInfo on component mount
   useEffect(() => {
@@ -82,16 +85,60 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
 
     try {
       setLoading(true);
-      const updatedModels = models.filter(m => m.id !== modelId);
-      setModels(updatedModels);
+      setSaveState('saving');
+      setCountdown(5);
       
-      // Update userInfo with new models list
-      // You would implement the actual storage logic here
+      // 启动5秒倒计时
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
       
+      // 5秒超时处理
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          clearInterval(countdownInterval);
+          reject(new Error('TIMEOUT'));
+        }, 5000);
+      });
+      
+      // 模拟删除操作
+      const deleteOperation = new Promise((resolve) => {
+        setTimeout(() => {
+          const updatedModels = models.filter(m => m.id !== modelId);
+          setModels(updatedModels);
+          resolve(true);
+        }, Math.random() * 2000 + 500); // 0.5-2.5秒的随机延迟
+      });
+      
+      // 使用 Promise.race 来处理超时
+      await Promise.race([
+        deleteOperation,
+        timeoutPromise
+      ]);
+      
+      // 如果成功，清除倒计时并显示成功状态
+      clearInterval(countdownInterval);
+      setSaveState('success');
+      setCountdown(0);
       showNotification('success', '模型配置已删除');
-    } catch (error) {
+      
+    } catch (error: any) {
       console.error('Delete model error:', error);
-      showNotification('error', '删除失败，请稍后重试');
+      
+      if (error.message === 'TIMEOUT') {
+        setSaveState('error');
+        showNotification('error', '由于网络原因删除失败，请稍后重试');
+      } else {
+        setSaveState('error');
+        showNotification('error', '删除失败，请稍后重试');
+      }
+      setCountdown(0);
     } finally {
       setLoading(false);
     }
@@ -100,6 +147,731 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const handleSetDefault = async (modelId: string) => {
     try {
       setLoading(true);
+      setSaveState('saving');
+      setCountdown(5);
+      
+      // 启动5秒倒计时
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      // 5秒超时处理
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          clearInterval(countdownInterval);
+          reject(new Error('TIMEOUT'));
+        }, 5000);
+      });
+      
+      // 模拟设置默认模型操作
+      const setDefaultOperation = new Promise(async (resolve) => {
+        setTimeout(async () => {
+          const updatedModels = models.map(m => ({
+            ...m,
+            isDefault: m.id === modelId
+          }));
+          setModels(updatedModels);
+          
+          // Update userInfo with default model
+          await updateUserInfo({
+            model_id: parseInt(modelId),
+            model_name: models.find(m => m.id === modelId)?.name
+          });
+          
+          resolve(true);
+        }, Math.random() * 2000 + 500); // 0.5-2.5秒的随机延迟
+      });
+      
+      // 使用 Promise.race 来处理超时
+      await Promise.race([
+        setDefaultOperation,
+        timeoutPromise
+      ]);
+      
+      // 如果成功，清除倒计时并显示成功状态
+      clearInterval(countdownInterval);
+      setSaveState('success');
+      setCountdown(0);
+      showNotification('success', '默认模型已更新');
+      
+    } catch (error: any) {
+      console.error('Set default model error:', error);
+      
+      if (error.message === 'TIMEOUT') {
+        setSaveState('error');
+        showNotification('error', '由于网络原因设置失败，请稍后重试');
+      } else {
+        setSaveState('error');
+        showNotification('error', '设置失败，请稍后重试');
+      }
+      setCountdown(0);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 重置保存状态
+  const resetSaveState = () => {
+    setSaveState('idle');
+    setCountdown(0);
+  };
+
+  // 获取操作按钮的状态
+  const getActionButtonState = () => {
+    if (saveState === 'saving') {
+      return { 
+        text: `处理中... (${countdown}s)`, 
+        icon: Timer, 
+        disabled: true,
+        className: 'bg-blue-600 text-white cursor-wait'
+      };
+    }
+    if (saveState === 'success') {
+      return { 
+        text: '操作成功', 
+        icon: Check, 
+        disabled: true,
+        className: 'bg-green-600 text-white'
+      };
+    }
+    if (saveState === 'error') {
+      return { 
+        text: '操作失败', 
+        icon: AlertTriangle, 
+        disabled: false,
+        className: 'bg-red-600 text-white hover:bg-red-700'
+      };
+    }
+    return { 
+      text: '', 
+      icon: null, 
+      disabled: false,
+      className: ''
+    };
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="p-6 space-y-6"
+    >
+      {/* 操作状态提示 */}
+      {saveState !== 'idle' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className={`p-4 rounded-lg border flex items-center space-x-3 ${
+            saveState === 'saving'
+              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+              : saveState === 'success'
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+          }`}
+        >
+          {saveState === 'saving' && <Loader2 size={16} className="animate-spin" />}
+          {saveState === 'success' && <Check size={16} />}
+          {saveState === 'error' && <AlertTriangle size={16} />}
+          <span className="text-sm font-medium">{getActionButtonState().text}</span>
+          {saveState !== 'saving' && (
+            <button
+              onClick={resetSaveState}
+              className="ml-auto p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </motion.div>
+      )}
+
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <SettingsIcon size={20} className="text-blue-600 dark:text-blue-400" />
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">AI 模型配置</h2>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              管理您的自定义 AI 模型和参数设置
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleAddModel}
+          disabled={saveState === 'saving'}
+          className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <Plus size={16} />
+          <span>添加模型</span>
+        </button>
+      </div>
+
+      {/* Models List */}
+      <div className="space-y-4">
+        {models.length === 0 ? (
+          <div className="text-center py-12 bg-gray-50 dark:bg-gray-800 rounded-xl border-2 border-dashed border-gray-300 dark:border-gray-600">
+            <Cpu size={48} className="mx-auto mb-4 text-gray-400" />
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+              暂无自定义模型
+            </h3>
+            <p className="text-gray-500 dark:text-gray-400 mb-4">
+              添加您的第一个自定义 AI 模型配置
+            </p>
+            <button
+              onClick={handleAddModel}
+              disabled={saveState === 'saving'}
+              className="inline-flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Plus size={16} />
+              <span>添加模型</span>
+            </button>
+          </div>
+        ) : (
+          models.map((model) => (
+            <motion.div
+              key={model.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-blue-100 dark:bg-blue-900/20 rounded-lg">
+                    <Cpu size={20} className="text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <h3 className="font-semibold text-gray-900 dark:text-white">
+                        {model.name}
+                      </h3>
+                      {model.isDefault && (
+                        <span className="inline-flex items-center space-x-1 px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full text-xs">
+                          <Star size={12} />
+                          <span>默认</span>
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      创建于 {model.createdAt.toLocaleDateString('zh-CN')}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  {!model.isDefault && (
+                    <button
+                      onClick={() => handleSetDefault(model.id)}
+                      disabled={saveState === 'saving'}
+                      className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                      title="设为默认"
+                    >
+                      <Star size={16} />
+                    </button>
+                  )}
+                  <button
+                    onClick={() => handleEditModel(model)}
+                    disabled={saveState === 'saving'}
+                    className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="编辑"
+                  >
+                    <Edit3 size={16} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteModel(model.id)}
+                    disabled={saveState === 'saving'}
+                    className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    title="删除"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Base URL
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <Globe size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                      {model.baseUrl}
+                    </span>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    API Key
+                  </label>
+                  <div className="flex items-center space-x-2">
+                    <Key size={14} className="text-gray-400" />
+                    <span className="text-sm text-gray-600 dark:text-gray-400 font-mono">
+                      {showApiKey[model.id] 
+                        ? model.apiKey 
+                        : '•'.repeat(Math.min(model.apiKey.length, 20))
+                      }
+                    </span>
+                    <button
+                      onClick={() => toggleApiKeyVisibility(model.id)}
+                      className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    >
+                      {showApiKey[model.id] ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  模型参数
+                </h4>
+                <div className="grid grid-cols-3 gap-4 text-sm">
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Top-K:</span>
+                    <span className="ml-2 font-mono">{model.parameters.topK}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Top-P:</span>
+                    <span className="ml-2 font-mono">{model.parameters.topP}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 dark:text-gray-400">Temperature:</span>
+                    <span className="ml-2 font-mono">{model.parameters.temperature}</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          ))
+        )}
+      </div>
+
+      {/* Add/Edit Model Modal */}
+      <AnimatePresence>
+        {showAddModal && (
+          <ModelConfigModal
+            model={editingModel}
+            onSave={(modelData) => {
+              if (editingModel) {
+                // Update existing model
+                setModels(prev => prev.map(m => 
+                  m.id === editingModel.id ? { ...modelData, id: editingModel.id } : m
+                ));
+                showNotification('success', '模型配置已更新');
+              } else {
+                // Add new model
+                const newModel: ModelConfig = {
+                  ...modelData,
+                  id: Date.now().toString(),
+                  createdAt: new Date(),
+                  isDefault: models.length === 0
+                };
+                setModels(prev => [...prev, newModel]);
+                showNotification('success', '模型配置已添加');
+              }
+              setShowAddModal(false);
+              resetSaveState();
+            }}
+            onClose={() => {
+              setShowAddModal(false);
+              resetSaveState();
+            }}
+            loading={loading}
+          />
+        )}
+      </AnimatePresence>
+    </motion.div>
+  );
+};
+
+interface ModelConfigModalProps {
+  model: ModelConfig | null;
+  onSave: (model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => void;
+  onClose: () => void;
+  loading: boolean;
+}
+
+const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
+  model,
+  onSave,
+  onClose,
+  loading
+}) => {
+  // 初始表单数据
+  const initialFormData = {
+    name: model?.name || '',
+    baseUrl: model?.baseUrl || '',
+    apiKey: model?.apiKey || '',
+    topK: model?.parameters.topK || 50,
+    topP: model?.parameters.topP || 1.0,
+    temperature: model?.parameters.temperature || 0.8
+  };
+
+  const [formData, setFormData] = useState({
+    name: model?.name || '',
+    baseUrl: model?.baseUrl || '',
+    apiKey: model?.apiKey || '',
+    topK: model?.parameters.topK || 50,
+    topP: model?.parameters.topP || 1.0,
+    temperature: model?.parameters.temperature || 0.8
+  });
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [countdown, setCountdown] = useState(0);
+
+  const handleInputChange = (field: string, value: string | number) => {
+    setFormData(prev => ({ ...prev, [field]: value }));
+    setSaveState('idle'); // 重置保存状态
+  };
+
+  // 重置表单到初始状态
+  const handleResetForm = () => {
+    setFormData(initialFormData);
+    setSaveState('idle');
+  };
+
+  const handleSave = async () => {
+    if (!formData.name.trim() || !formData.baseUrl.trim() || !formData.apiKey.trim()) {
+      return;
+    }
+
+    try {
+      setSaveState('saving');
+      setCountdown(5);
+      
+      // 启动5秒倒计时
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      // 5秒超时处理
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          clearInterval(countdownInterval);
+          reject(new Error('TIMEOUT'));
+        }, 5000);
+      });
+      
+      // 模拟保存操作
+      const saveOperation = new Promise((resolve) => {
+        setTimeout(() => {
+          onSave({
+            name: formData.name.trim(),
+            baseUrl: formData.baseUrl.trim(),
+            apiKey: formData.apiKey.trim(),
+            parameters: {
+              topK: formData.topK,
+              topP: formData.topP,
+              temperature: formData.temperature
+            }
+          });
+          resolve(true);
+        }, Math.random() * 3000 + 500); // 0.5-3.5秒的随机延迟
+      });
+      
+      // 使用 Promise.race 来处理超时
+      await Promise.race([
+        saveOperation,
+        timeoutPromise
+      ]);
+      
+      // 如果成功，清除倒计时并显示成功状态
+      clearInterval(countdownInterval);
+      setSaveState('success');
+      setCountdown(0);
+      
+      // 延迟关闭模态框
+      setTimeout(() => {
+        onClose();
+      }, 1000);
+      
+    } catch (error: any) {
+      console.error('Save model error:', error);
+      
+      if (error.message === 'TIMEOUT') {
+        setSaveState('error');
+      } else {
+        setSaveState('error');
+      }
+      setCountdown(0);
+    }
+  };
+
+  const isFormValid = 
+    formData.name.trim().length > 0 &&
+    formData.baseUrl.trim().length > 0 &&
+    formData.apiKey.trim().length > 0;
+
+  // 检查表单是否有变化
+  const hasChanges = 
+    formData.name !== initialFormData.name ||
+    formData.baseUrl !== initialFormData.baseUrl ||
+    formData.apiKey !== initialFormData.apiKey ||
+    formData.topK !== initialFormData.topK ||
+    formData.topP !== initialFormData.topP ||
+    formData.temperature !== initialFormData.temperature;
+
+  // 获取保存按钮的状态
+  const getSaveButtonContent = () => {
+    if (saveState === 'saving') {
+      return { 
+        text: `保存中... (${countdown}s)`, 
+        icon: Timer, 
+        disabled: true,
+        className: 'bg-blue-600 text-white cursor-wait'
+      };
+    }
+    if (saveState === 'success') {
+      return { 
+        text: '保存成功', 
+        icon: Check, 
+        disabled: true,
+        className: 'bg-green-600 text-white'
+      };
+    }
+    if (saveState === 'error') {
+      return { 
+        text: '保存失败，点击重试', 
+        icon: AlertTriangle, 
+        disabled: false,
+        className: 'bg-red-600 text-white hover:bg-red-700'
+      };
+    }
+    return { 
+      text: '保存配置', 
+      icon: Save, 
+      disabled: !isFormValid || !hasChanges,
+      className: !isFormValid || !hasChanges
+        ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+        : 'bg-blue-600 text-white hover:bg-blue-700'
+    };
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      style={{
+        zIndex: 100002,
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0
+      }}
+      onClick={saveState === 'saving' ? undefined : onClose}
+    >
+      <motion.div
+        initial={{ scale: 0.95, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        exit={{ scale: 0.95, opacity: 0 }}
+        onClick={(e) => e.stopPropagation()}
+        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
+        style={{
+          zIndex: 100003,
+          position: 'relative'
+        }}
+      >
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            {model ? '编辑模型配置' : '添加新模型'}
+          </h2>
+          <button
+            onClick={onClose}
+            disabled={saveState === 'saving'}
+            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+
+        {/* 保存状态提示 */}
+        {saveState === 'error' && (
+          <div className="mx-6 mt-4 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+            <div className="flex items-center space-x-2 text-red-700 dark:text-red-300">
+              <AlertTriangle size={16} />
+              <span className="text-sm font-medium">由于网络原因保存失败，请稍后重试</span>
+            </div>
+          </div>
+        )}
+
+        <div className="p-6 space-y-6">
+          {/* Basic Information */}
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                模型名称 *
+              </label>
+              <input
+                type="text"
+                value={formData.name}
+                onChange={(e) => handleInputChange('name', e.target.value)}
+                placeholder="例如：GPT-4 Custom"
+                disabled={saveState === 'saving'}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Base URL *
+              </label>
+              <input
+                type="url"
+                value={formData.baseUrl}
+                onChange={(e) => handleInputChange('baseUrl', e.target.value)}
+                placeholder="https://api.openai.com/v1"
+                disabled={saveState === 'saving'}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                API Key *
+              </label>
+              <div className="relative">
+                <input
+                  type={showApiKey ? 'text' : 'password'}
+                  value={formData.apiKey}
+                  onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                  placeholder="sk-..."
+                  disabled={saveState === 'saving'}
+                  className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowApiKey(!showApiKey)}
+                  disabled={saveState === 'saving'}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Model Parameters */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white">模型参数</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Top-K
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="100"
+                  value={formData.topK}
+                  onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
+                  disabled={saveState === 'saving'}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  限制候选词汇数量 (1-100)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Top-P
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="1"
+                  step="0.1"
+                  value={formData.topP}
+                  onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
+                  disabled={saveState === 'saving'}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  核采样概率 (0.0-1.0)
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  Temperature
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  max="2"
+                  step="0.1"
+                  value={formData.temperature}
+                  onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
+                  disabled={saveState === 'saving'}
+                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  输出随机性 (0.0-2.0)
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleResetForm}
+            disabled={!hasChanges || saveState === 'saving'}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RotateCcw size={16} />
+            <span>重置</span>
+          </button>
+          
+          <div className="flex items-center space-x-3">
+          <button
+            onClick={onClose}
+            disabled={saveState === 'saving'}
+            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            取消
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={getSaveButtonContent().disabled}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${getSaveButtonContent().className}`}
+          >
+            {saveState === 'saving' ? (
+              <>
+                <Loader2 size={16} className="animate-spin" />
+                <span>{getSaveButtonContent().text}</span>
+              </>
+            ) : (
+              <>
+                <getSaveButtonContent().icon size={16} />
+                <span>{getSaveButtonContent().text}</span>
+              </>
+            )}
+          </button>
+          </div>
+        </div>
+      </motion.div>
+    </motion.div>
+  );
+};
+
+export default ModelConfigSection;
       const updatedModels = models.map(m => ({
         ...m,
         isDefault: m.id === modelId
