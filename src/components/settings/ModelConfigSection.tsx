@@ -347,7 +347,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                         {model.name}
                       </h3>
                       {model.isDefault && (
-                        <span className="px-2 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full text-xs font-medium">
+                         {React.createElement(getSaveButtonContent().icon, { size: 16 })}
                           默认
                         </span>
                       )}
