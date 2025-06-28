@@ -65,11 +65,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     confirmPassword: ''
   };
 
-  const [passwordForm, setPasswordForm] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: ''
-  });
+  const [passwordForm, setPasswordForm] = useState(initialPasswordForm);
   const [showPasswords, setShowPasswords] = useState({
     current: false,
     new: false,
@@ -190,7 +186,6 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
       });
       
       // 实际的密码更新操作
-      
       const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword
       });
@@ -605,15 +600,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
-            style={{
-              zIndex: 100002,
-              position: 'fixed',
-              top: 0,
-              left: 0,
-              right: 0,
-              bottom: 0
-            }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-user-settings-nested-modal"
             onClick={() => setShowDeleteModal(false)}
           >
             <motion.div
