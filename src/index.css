@@ -298,6 +298,16 @@ img {
   z-index: 100003 !important;
 }
 
+/* 确保用户设置相关弹窗的层级管理 */
+.z-user-settings-nested-modal {
+  z-index: 100002 !important;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+}
+
 /* 模型配置对话框滚动条样式 */
 .model-config-modal-content {
   /* 自定义滚动条样式 */

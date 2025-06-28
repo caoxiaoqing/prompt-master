@@ -402,14 +402,18 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
+      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-user-settings-nested-modal"
       style={{
-        zIndex: 100002,
+        zIndex: 100002, // 确保高于用户设置页面
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0
+        bottom: 0,
+        // 确保弹窗容器覆盖整个视窗
+        margin: 0,
+        padding: '1rem',
+        display: 'flex'
       }}
       onClick={onClose}
     >
@@ -421,10 +425,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
         style={{
           maxHeight: '80vh',
-          zIndex: 100003,
+          zIndex: 100003, // 确保内容在背景之上
           position: 'relative',
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          // 确保弹窗在视窗中居中
+          margin: 'auto',
+          // 防止弹窗超出视窗边界
+          maxWidth: 'calc(100vw - 2rem)',
+          width: '100%'
         }}
       >
         {/* Header - 固定不滚动 */}
