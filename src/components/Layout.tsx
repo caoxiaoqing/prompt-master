@@ -17,11 +17,13 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBar from './StatusBar';
 import FolderSidebar from './FolderSidebar';
+import UserSettings from './settings/UserSettings';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, dispatch } = useApp();
   const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleSidebar = () => {
@@ -190,7 +192,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                       <button
                         onClick={() => {
                           setShowUserMenu(false);
-                          // 这里可以添加账户设置的逻辑
+                          setShowSettings(true);
                         }}
                         className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 text-gray-700 dark:text-gray-300 transition-colors"
                       >
@@ -259,6 +261,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
           </main>
         </div>
       </div>
+
+      {/* User Settings Modal */}
+      {showSettings && (
+        <UserSettings onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 };

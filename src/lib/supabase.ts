@@ -36,6 +36,10 @@ export interface UserInfo {
   subscription_status?: boolean
   subscription_type?: any
   created_at?: string
+  // 新增字段用于存储用户偏好设置
+  language?: string
+  timezone?: string
+  custom_models?: any[]
 }
 
 // 动物头像emoji数组
