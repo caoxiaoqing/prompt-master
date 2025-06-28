@@ -420,11 +420,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         onClick={(e) => e.stopPropagation()}
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
         style={{
+          maxHeight: '80vh',
           zIndex: 100003,
-          position: 'relative'
+          position: 'relative',
+          display: 'flex',
+          flexDirection: 'column'
         }}
       >
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+        {/* Header - 固定不滚动 */}
+        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
             {model ? '编辑模型配置' : '添加新模型'}
           </h2>
@@ -436,7 +440,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6">
+        {/* Content - 可滚动区域 */}
+        <div 
+          className="flex-1 overflow-y-auto p-6 space-y-6 model-config-modal-content"
+          style={{
+            scrollBehavior: 'smooth',
+            scrollbarWidth: 'thin',
+            scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent'
+          }}
+        >
           {/* Basic Information */}
           <div className="space-y-4">
             <div>
@@ -549,7 +561,8 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
+        {/* Footer - 固定不滚动 */}
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           <button
             onClick={handleResetForm}
             disabled={!hasChanges || loading}

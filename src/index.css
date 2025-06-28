@@ -298,6 +298,44 @@ img {
   z-index: 100003 !important;
 }
 
+/* 模型配置对话框滚动条样式 */
+.model-config-modal-content {
+  /* 自定义滚动条样式 */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
+}
+
+.model-config-modal-content::-webkit-scrollbar {
+  width: 8px;
+}
+
+.model-config-modal-content::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+}
+
+.model-config-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+  transition: background-color 0.2s ease;
+}
+
+.model-config-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+.dark .model-config-modal-content::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.5);
+}
+
+.dark .model-config-modal-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 85, 99, 0.7);
+}
+
+.dark .model-config-modal-content::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
 /* 应用所有弹出元素的通用样式 */
 .popup-element {
   /* 确保弹出元素不影响页面布局 */
