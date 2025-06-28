@@ -281,6 +281,23 @@ img {
   z-index: 50000 !important;
 }
 
+/* 用户设置页面专用层级 */
+.z-user-settings-backdrop {
+  z-index: 100000 !important;
+}
+
+.z-user-settings-modal {
+  z-index: 100001 !important;
+}
+
+.z-user-settings-nested-modal {
+  z-index: 100002 !important;
+}
+
+.z-user-settings-nested-content {
+  z-index: 100003 !important;
+}
+
 /* 应用所有弹出元素的通用样式 */
 .popup-element {
   /* 确保弹出元素不影响页面布局 */

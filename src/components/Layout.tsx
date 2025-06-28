@@ -162,8 +162,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-dropdown"
                     onClick={handleMenuClick}
                     style={{
-                      // 确保菜单在最上层且不影响其他元素
-                      zIndex: 10000,
+                      // 确保菜单层级低于用户设置页面
+                      zIndex: 50000,
                       // 防止菜单影响页面布局
                       position: 'absolute',
                       // 确保菜单有明确的边界
