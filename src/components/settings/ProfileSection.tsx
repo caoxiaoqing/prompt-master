@@ -9,7 +9,8 @@ import {
   Save, 
   Loader2,
   Check,
-  AlertCircle
+  AlertCircle,
+  RotateCcw
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { UserInfo } from '../../lib/supabase';
@@ -31,11 +32,21 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   loading,
   setLoading
 }) => {
+  // 初始表单数据
+  const initialFormData = {
+    user_name: userInfo?.user_name || '',
+    email: user?.email || '',
+    user_profile_pic: userInfo?.user_profile_pic || '',
+    language: userInfo?.language || 'zh-CN',
+    timezone: userInfo?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
+  };
+
   const [formData, setFormData] = useState({
     user_name: userInfo?.user_name || '',
     email: user?.email || '',
-    language: 'zh-CN',
-    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+    user_profile_pic: userInfo?.user_profile_pic || '',
+    language: userInfo?.language || 'zh-CN',
+    timezone: userInfo?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone
   });
   const [emailVerificationSent, setEmailVerificationSent] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -76,6 +87,12 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
     handleInputChange('user_profile_pic', emoji);
   };
 
+  // 重置表单到初始状态
+  const handleResetForm = () => {
+    setFormData(initialFormData);
+    setEmailVerificationSent(false);
+  };
+
   const handleSaveProfile = async () => {
     if (!user) return;
 
@@ -84,6 +101,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       
       const updates: Partial<UserInfo> = {
         user_name: formData.user_name.trim(),
+        language: formData.language,
+        timezone: formData.timezone
       };
 
       if (formData.user_profile_pic) {
@@ -118,9 +137,13 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
   };
 
   const isFormValid = formData.user_name.trim().length > 0;
+  
+  // 检查表单是否有变化
   const hasChanges = 
     formData.user_name !== (userInfo?.user_name || '') ||
-    formData.user_profile_pic !== (userInfo?.user_profile_pic || '');
+    formData.user_profile_pic !== (userInfo?.user_profile_pic || '') ||
+    formData.language !== (userInfo?.language || 'zh-CN') ||
+    formData.timezone !== (userInfo?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone);
 
   return (
     <motion.div
@@ -139,8 +162,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         <div className="flex items-start space-x-6">
           <div className="text-center">
             <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-4 border-2 border-dashed border-gray-300 dark:border-gray-600">
-              {userInfo?.user_profile_pic ? (
-                <span className="text-4xl">{userInfo.user_profile_pic}</span>
+              {formData.user_profile_pic ? (
+                <span className="text-4xl">{formData.user_profile_pic}</span>
               ) : (
                 <User size={32} className="text-gray-400" />
               )}
@@ -267,12 +290,24 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
         </div>
       </div>
 
-      {/* Save Button */}
-      <div className="flex justify-end">
+      {/* Action Buttons */}
+      <div className="flex justify-end space-x-3">
+        <button
+          onClick={handleResetForm}
+          disabled={!hasChanges || loading}
+          className="flex items-center space-x-2 px-6 py-3 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RotateCcw size={16} />
+          <span>取消</span>
+        </button>
         <button
           onClick={handleSaveProfile}
           disabled={!isFormValid || !hasChanges || loading}
-          className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors ${
+            !isFormValid || !hasChanges || loading
+              ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
         >
           {loading ? (
             <Loader2 size={16} className="animate-spin" />

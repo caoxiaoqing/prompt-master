@@ -15,7 +15,8 @@ import {
   Star,
   Loader2,
   Check,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { UserInfo } from '../../lib/supabase';
@@ -336,6 +337,16 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   onClose,
   loading
 }) => {
+  // 初始表单数据
+  const initialFormData = {
+    name: model?.name || '',
+    baseUrl: model?.baseUrl || '',
+    apiKey: model?.apiKey || '',
+    topK: model?.parameters.topK || 50,
+    topP: model?.parameters.topP || 1.0,
+    temperature: model?.parameters.temperature || 0.8
+  };
+
   const [formData, setFormData] = useState({
     name: model?.name || '',
     baseUrl: model?.baseUrl || '',
@@ -348,6 +359,11 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
 
   const handleInputChange = (field: string, value: string | number) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // 重置表单到初始状态
+  const handleResetForm = () => {
+    setFormData(initialFormData);
   };
 
   const handleSave = () => {
@@ -371,6 +387,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     formData.name.trim().length > 0 &&
     formData.baseUrl.trim().length > 0 &&
     formData.apiKey.trim().length > 0;
+
+  // 检查表单是否有变化
+  const hasChanges = 
+    formData.name !== initialFormData.name ||
+    formData.baseUrl !== initialFormData.baseUrl ||
+    formData.apiKey !== initialFormData.apiKey ||
+    formData.topK !== initialFormData.topK ||
+    formData.topP !== initialFormData.topP ||
+    formData.temperature !== initialFormData.temperature;
 
   return (
     <motion.div
@@ -524,7 +549,17 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </div>
         </div>
 
-        <div className="flex items-center justify-end space-x-3 p-6 border-t border-gray-200 dark:border-gray-700">
+        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700">
+          <button
+            onClick={handleResetForm}
+            disabled={!hasChanges || loading}
+            className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            <RotateCcw size={16} />
+            <span>重置</span>
+          </button>
+          
+          <div className="flex items-center space-x-3">
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
@@ -533,8 +568,12 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={!isFormValid || loading}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            disabled={!isFormValid || !hasChanges || loading}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+              !isFormValid || !hasChanges || loading
+                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -543,6 +582,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
             )}
             <span>{loading ? '保存中...' : '保存配置'}</span>
           </button>
+          </div>
         </div>
       </motion.div>
     </motion.div>

@@ -16,7 +16,8 @@ import {
   MapPin,
   Clock,
   Check,
-  X
+  X,
+  RotateCcw
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { UserInfo, supabase } from '../../lib/supabase';
@@ -56,6 +57,13 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   loading,
   setLoading
 }) => {
+  // 初始密码表单数据
+  const initialPasswordForm = {
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  };
+
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
     newPassword: '',
@@ -130,6 +138,16 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     setConnectedDevices(mockDevices);
   }, []);
 
+  // 重置密码表单
+  const handleResetPasswordForm = () => {
+    setPasswordForm(initialPasswordForm);
+    setShowPasswords({
+      current: false,
+      new: false,
+      confirm: false
+    });
+  };
+
   const handlePasswordChange = async () => {
     if (!user) return;
 
@@ -152,11 +170,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
 
       if (error) throw error;
 
-      setPasswordForm({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
+      setPasswordForm(initialPasswordForm);
       
       showNotification('success', '密码修改成功');
     } catch (error: any) {
@@ -230,6 +244,12 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     passwordForm.currentPassword.length > 0 &&
     passwordForm.newPassword.length >= 6 &&
     passwordForm.newPassword === passwordForm.confirmPassword;
+
+  // 检查密码表单是否有变化
+  const hasPasswordChanges = 
+    passwordForm.currentPassword.length > 0 ||
+    passwordForm.newPassword.length > 0 ||
+    passwordForm.confirmPassword.length > 0;
 
   return (
     <motion.div
@@ -319,18 +339,33 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
             )}
           </div>
 
-          <button
-            onClick={handlePasswordChange}
-            disabled={!isPasswordFormValid || loading}
-            className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Save size={16} />
-            )}
-            <span>{loading ? '修改中...' : '修改密码'}</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={handleResetPasswordForm}
+              disabled={!hasPasswordChanges || loading}
+              className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <RotateCcw size={16} />
+              <span>取消</span>
+            </button>
+            
+            <button
+              onClick={handlePasswordChange}
+              disabled={!isPasswordFormValid || loading}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                !isPasswordFormValid || loading
+                  ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 text-white hover:bg-blue-700'
+              }`}
+            >
+              {loading ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Save size={16} />
+              )}
+              <span>{loading ? '修改中...' : '修改密码'}</span>
+            </button>
+          </div>
         </div>
       </div>
 
