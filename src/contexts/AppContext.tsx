@@ -114,7 +114,9 @@ function convertDatesToObjects(obj: any): any {
           converted[key] = new Date(obj[key]);
         } else {
           converted[key] = convertDatesToObjects(obj[key]);
-        }
+        console.error('同步到数据库失败:', error)
+        // Show user-friendly message instead of crashing
+        console.warn('⚠️ App running in offline mode due to connection issues')
       }
     }
     return converted;

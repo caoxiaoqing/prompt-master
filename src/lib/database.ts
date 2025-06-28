@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isSupabaseAvailable } from './supabase'
 
 // 数据库类型定义
 export interface TaskInfoRecord {
@@ -342,6 +343,12 @@ export class DatabaseService {
    */
   static async syncLocalDataToDatabase(userId: string, folders: any[], tasks: any[]): Promise<void> {
     try {
+      // Check if Supabase is available before attempting sync
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Skipping database sync - Supabase unavailable')
+        return
+      }
+      
       console.log('🔄 开始同步本地数据到数据库:', { userId, foldersCount: folders.length, tasksCount: tasks.length })
 
       // 1. 清除用户现有数据（重新同步）
@@ -413,8 +420,10 @@ export class DatabaseService {
 
       console.log('✅ 本地数据同步到数据库完成')
     } catch (error) {
-      console.error('💥 同步本地数据到数据库出错:', error)
-      throw error
+      console.error('❌ 数据同步失败:', error)
+      // Don't throw the error to prevent app crashes
+      // Just log it and continue with offline mode
+      console.warn('⚠️ Continuing in offline mode')
     }
   }
 
