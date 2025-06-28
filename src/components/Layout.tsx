@@ -20,6 +20,7 @@ import FolderSidebar from './FolderSidebar';
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, dispatch } = useApp();
   const { user, userInfo, signOut } = useAuth();
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const toggleSidebar = () => {
     dispatch({ type: 'TOGGLE_SIDEBAR' });
@@ -88,9 +89,11 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
               </button>
               
               {/* User Menu */}
-              <div className="relative group">
+              <div className="relative">
                 <button 
-                  className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  className="group flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+                  onMouseEnter={() => setShowUserMenu(true)}
+                  onMouseLeave={() => setShowUserMenu(false)}
                   title="用户菜单"
                 >
                   {/* 显示用户头像或默认图标 */}
@@ -107,7 +110,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 </button>
                 
                 {/* User Dropdown Menu */}
-                <div className="dropdown-base absolute right-0 top-full mt-2 w-48 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none group-hover:pointer-events-auto">
+                <div 
+                  className={`dropdown-base absolute right-0 top-full mt-2 w-48 transition-opacity ${
+                    showUserMenu ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+                  }`}
+                  onMouseEnter={() => setShowUserMenu(true)}
+                  onMouseLeave={() => setShowUserMenu(false)}
+                >
                   <div className="py-2">
                     <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
                       <div className="flex items-center space-x-2 mb-1">
