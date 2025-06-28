@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Menu, 
@@ -10,7 +10,8 @@ import {
   ChevronRight,
   ChevronLeft,
   Folder,
-  LogOut
+  LogOut,
+  ChevronDown
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
@@ -21,6 +22,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, dispatch } = useApp();
   const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleSidebar = () => {
     dispatch({ type: 'TOGGLE_SIDEBAR' });
@@ -36,6 +38,42 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     } catch (error) {
       console.error('Sign out error:', error);
     }
+  };
+
+  // 处理用户菜单的点击切换
+  const toggleUserMenu = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowUserMenu(!showUserMenu);
+  };
+
+  // 点击外部区域关闭菜单
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    const handleEscapeKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setShowUserMenu(false);
+      }
+    };
+
+    if (showUserMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener('keydown', handleEscapeKey);
+      
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+        document.removeEventListener('keydown', handleEscapeKey);
+      };
+    }
+  }, [showUserMenu]);
+
+  // 阻止菜单内部点击事件冒泡
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
   };
 
   return (
@@ -66,12 +104,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     </div>
                   )}
                 </button>
-                
-                {/* 悬停提示 - 根据状态显示不同的提示 */}
-                <div className="tooltip-base absolute left-full top-1/2 transform -translate-y-1/2 ml-2 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                  {state.sidebarOpen ? "点击收起项目管理" : "点击展开项目管理"}
-                  <div className="absolute right-full top-1/2 transform -translate-y-1/2 border-4 border-transparent border-r-gray-900 dark:border-r-gray-700"></div>
-                </div>
               </div>
               
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -88,66 +120,99 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {state.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               
-              {/* User Menu */}
-              <div className="relative">
+              {/* User Menu - 修复后的版本 */}
+              <div className="relative" ref={userMenuRef}>
                 <button 
-                  className="flex items-center space-x-2 p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-                  onMouseEnter={() => setShowUserMenu(true)}
-                  onMouseLeave={() => setShowUserMenu(false)}
+                  onClick={toggleUserMenu}
+                  className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${
+                    showUserMenu 
+                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                  }`}
                   title="用户菜单"
+                  aria-expanded={showUserMenu}
+                  aria-haspopup="true"
                 >
                   {/* 显示用户头像或默认图标 */}
-                  {userInfo?.user_profile_pic ? (
-                    <span className="text-lg">{userInfo.user_profile_pic}</span>
-                  ) : (
-                    <User size={18} />
-                  )}
-                  {userInfo?.user_name && (
-                    <span className="text-sm font-medium hidden sm:block max-w-32 truncate">
-                      {userInfo.user_name}
-                    </span>
-                  )}
+                  <div className="flex items-center space-x-2">
+                    {userInfo?.user_profile_pic ? (
+                      <span className="text-lg">{userInfo.user_profile_pic}</span>
+                    ) : (
+                      <User size={18} />
+                    )}
+                    {userInfo?.user_name && (
+                      <span className="text-sm font-medium hidden sm:block max-w-32 truncate">
+                        {userInfo.user_name}
+                      </span>
+                    )}
+                    <ChevronDown 
+                      size={14} 
+                      className={`transition-transform duration-200 ${
+                        showUserMenu ? 'rotate-180' : ''
+                      }`} 
+                    />
+                  </div>
                 </button>
                 
-                {/* User Dropdown Menu */}
-                <div 
-                  className={`dropdown-base absolute right-0 top-full mt-2 w-48 transition-opacity ${
-                    showUserMenu ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-                  }`}
-                  onMouseEnter={() => setShowUserMenu(true)}
-                  onMouseLeave={() => setShowUserMenu(false)}
-                >
-                  <div className="py-2">
-                    <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-600">
-                      <div className="flex items-center space-x-2 mb-1">
+                {/* User Dropdown Menu - 精确控制的下拉菜单 */}
+                {showUserMenu && (
+                  <div 
+                    className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-dropdown"
+                    onClick={handleMenuClick}
+                    style={{
+                      // 确保菜单在最上层且不影响其他元素
+                      zIndex: 10000,
+                      // 防止菜单影响页面布局
+                      position: 'absolute',
+                      // 确保菜单有明确的边界
+                      contain: 'layout'
+                    }}
+                  >
+                    {/* 菜单头部 - 用户信息 */}
+                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                      <div className="flex items-center space-x-3 mb-1">
                         {userInfo?.user_profile_pic && (
-                          <span className="text-lg">{userInfo.user_profile_pic}</span>
+                          <span className="text-xl">{userInfo.user_profile_pic}</span>
                         )}
-                        <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                          {userInfo?.user_name || '用户'}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                            {userInfo?.user_name || '用户'}
+                          </p>
+                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                            {user?.email}
+                          </p>
+                        </div>
                       </div>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                        {user?.email}
-                      </p>
                     </div>
                     
-                    <button
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2 text-gray-700 dark:text-gray-300 transition-colors"
-                    >
-                      <Settings size={14} />
-                      <span>账户设置</span>
-                    </button>
-                    
-                    <button
-                      onClick={handleSignOut}
-                      className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-2 text-red-600 dark:text-red-400 transition-colors"
-                    >
-                      <LogOut size={14} />
-                      <span>退出登录</span>
-                    </button>
+                    {/* 菜单选项 */}
+                    <div className="py-1">
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          // 这里可以添加账户设置的逻辑
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 text-gray-700 dark:text-gray-300 transition-colors"
+                      >
+                        <Settings size={16} />
+                        <span>账户设置</span>
+                      </button>
+                      
+                      <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                      
+                      <button
+                        onClick={() => {
+                          setShowUserMenu(false);
+                          handleSignOut();
+                        }}
+                        className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-3 text-red-600 dark:text-red-400 transition-colors"
+                      >
+                        <LogOut size={16} />
+                        <span>退出登录</span>
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
