@@ -447,7 +447,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
                 </>
               ) : (
                 <>
-                  <getPasswordButtonContent().icon size={16} />
+                  {React.createElement(getPasswordButtonContent().icon, { size: 16 })}
                   <span>{getPasswordButtonContent().text}</span>
                 </>
               )}
