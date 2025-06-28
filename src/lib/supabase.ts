@@ -7,6 +7,23 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables')
 }
 
+// Add connection validation
+const validateSupabaseConnection = async () => {
+  try {
+    const response = await fetch(`${supabaseUrl}/rest/v1/`, {
+      method: 'HEAD',
+      headers: {
+        'apikey': supabaseAnonKey,
+        'Authorization': `Bearer ${supabaseAnonKey}`
+      }
+    })
+    return response.ok
+  } catch (error) {
+    console.error('Supabase connection validation failed:', error)
+    return false
+  }
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     // 确保认证状态持久化
@@ -19,8 +36,41 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
     storage: window.localStorage,
     // 流程类型
     flowType: 'pkce'
+  },
+  global: {
+    fetch: async (url, options = {}) => {
+      try {
+        const response = await fetch(url, {
+          ...options,
+          signal: AbortSignal.timeout(10000) // 10 second timeout
+        })
+        return response
+      } catch (error) {
+        console.error('Supabase fetch error:', error)
+        // Return a mock response for failed requests to prevent app crashes
+        return new Response(JSON.stringify({ error: 'Connection failed' }), {
+          status: 503,
+          statusText: 'Service Unavailable',
+          headers: { 'Content-Type': 'application/json' }
+        })
+      }
+    }
   }
 })
+
+// Connection status tracking
+let isSupabaseConnected = true
+
+// Test connection on initialization
+validateSupabaseConnection().then(connected => {
+  isSupabaseConnected = connected
+  if (!connected) {
+    console.warn('⚠️ Supabase connection failed. App will run in offline mode.')
+  }
+})
+
+// Helper function to check if Supabase is available
+export const isSupabaseAvailable = () => isSupabaseConnected
 
 // 用户信息类型定义
 export interface UserInfo {
@@ -68,6 +118,10 @@ export const authService = {
   // 注册用户
   async signUp(email: string, password: string, userName: string) {
     try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Please check your internet connection and try again.')
+      }
+      
       console.log('🔐 Supabase 注册开始:', email)
       
       // 1. 使用 Supabase Auth 注册用户
@@ -128,6 +182,10 @@ export const authService = {
   // 登录用户
   async signIn(email: string, password: string) {
     try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Please check your internet connection and try again.')
+      }
+      
       console.log('🔑 Supabase 登录开始:', email)
       
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -170,6 +228,12 @@ export const authService = {
   // 登出用户
   async signOut() {
     try {
+      if (!isSupabaseConnected) {
+        // Allow logout even if offline
+        console.log('🚪 Offline 登出')
+        return true
+      }
+      
       console.log('🚪 Supabase 登出开始')
       
       const { error } = await supabase.auth.signOut()
@@ -189,6 +253,11 @@ export const authService = {
   // 获取当前用户
   async getCurrentUser() {
     try {
+      if (!isSupabaseConnected) {
+        console.log('ℹ️ Database unavailable, checking local session only')
+        return { user: null, userInfo: null }
+      }
+      
       console.log('👤 获取当前用户开始...')
       
       // 使用 getSession 获取当前会话
@@ -237,6 +306,10 @@ export const authService = {
   // 更新用户信息
   async updateUserInfo(uuid: string, updates: Partial<UserInfo>) {
     try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Changes cannot be saved at this time.')
+      }
+      
       console.log('📝 更新用户信息开始:', uuid, updates)
       
       const { data, error } = await supabase
@@ -262,6 +335,12 @@ export const authService = {
   // 监听认证状态变化
   onAuthStateChange(callback: (event: string, session: any) => void) {
     console.log('👂 设置认证状态监听器')
-    return supabase.auth.onAuthStateChange(callback)
+    try {
+      return supabase.auth.onAuthStateChange(callback)
+    } catch (error) {
+      console.error('Failed to set up auth state listener:', error)
+      // Return a dummy unsubscribe function
+      return { data: { subscription: { unsubscribe: () => {} } } }
+    }
   }
 }
