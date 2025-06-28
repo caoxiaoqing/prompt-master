@@ -383,6 +383,31 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     });
   };
 
+  // 关键修复：阻止所有可能导致弹窗跳动的事件冒泡
+  const handleBackdropClick = (e: React.MouseEvent) => {
+    // 只有点击背景本身时才关闭弹窗
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const handleModalContentClick = (e: React.MouseEvent) => {
+    // 阻止弹窗内容区域的点击事件冒泡到背景
+    e.stopPropagation();
+  };
+
+  // 关键修复：阻止鼠标移动事件影响弹窗位置
+  const handleMouseMove = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleMouseEnter = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
+  const handleMouseLeave = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
   const isFormValid = 
     formData.name.trim().length > 0 &&
     formData.baseUrl.trim().length > 0 &&
@@ -398,30 +423,53 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     formData.temperature !== initialFormData.temperature;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-user-settings-nested-modal"
+    <div
+      className="fixed inset-0 bg-black bg-opacity-50 z-user-settings-nested-modal"
       style={{
-        zIndex: 100002, // 确保高于用户设置页面
+        zIndex: 100002,
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
-        // 确保弹窗容器覆盖整个视窗
-        margin: 0,
-        padding: '1rem',
-        display: 'flex'
+        // 关键修复：防止任何布局变化
+        contain: 'layout style',
+        // 防止鼠标事件导致的重排
+        pointerEvents: 'auto',
+        // 确保背景稳定
+        transform: 'translateZ(0)',
+        // 防止闪烁
+        backfaceVisibility: 'hidden',
+        // 优化渲染性能
+        willChange: 'opacity'
       }}
-      onClick={onClose}
+      onClick={handleBackdropClick}
+      onMouseMove={handleMouseMove}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
     >
+      {/* 关键修复：使用独立的居中容器 */}
+      <div
+        className="fixed inset-0 flex items-center justify-center p-4"
+        style={{
+          // 确保居中容器不受鼠标事件影响
+          pointerEvents: 'none',
+          // 防止布局变化
+          contain: 'layout',
+          // 确保稳定的定位
+          transform: 'translateZ(0)',
+          // 防止任何可能的重排
+          willChange: 'auto'
+        }}
+      >
       <motion.div
         initial={{ scale: 0.95, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={handleModalContentClick}
+        onMouseMove={handleMouseMove}
+        onMouseEnter={handleMouseEnter}
+        onMouseLeave={handleMouseLeave}
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
         style={{
           maxHeight: '80vh',
@@ -429,11 +477,19 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           position: 'relative',
           display: 'flex',
           flexDirection: 'column',
-          // 确保弹窗在视窗中居中
-          margin: 'auto',
-          // 防止弹窗超出视窗边界
+          // 关键修复：重新启用指针事件
+          pointerEvents: 'auto',
+          // 防止弹窗内容超出边界
           maxWidth: 'calc(100vw - 2rem)',
-          width: '100%'
+          width: '100%',
+          // 关键修复：防止任何可能的布局变化
+          contain: 'layout style',
+          // 确保弹窗内容稳定
+          transform: 'translateZ(0)',
+          // 防止闪烁
+          backfaceVisibility: 'hidden',
+          // 优化动画性能
+          willChange: 'transform, opacity'
         }}
       >
         {/* Header - 固定不滚动 */}
@@ -444,6 +500,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            onMouseMove={handleMouseMove}
           >
             <X size={20} />
           </button>
@@ -455,8 +512,13 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           style={{
             scrollBehavior: 'smooth',
             scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent'
+            scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent',
+            // 关键修复：防止滚动时的布局变化
+            contain: 'layout',
+            // 优化滚动性能
+            willChange: 'scroll-position'
           }}
+          onMouseMove={handleMouseMove}
         >
           {/* Basic Information */}
           <div className="space-y-4">
@@ -470,6 +532,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="例如：GPT-4 Custom"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onMouseMove={handleMouseMove}
               />
             </div>
 
@@ -483,6 +546,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 onChange={(e) => handleInputChange('baseUrl', e.target.value)}
                 placeholder="https://api.openai.com/v1"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                onMouseMove={handleMouseMove}
               />
             </div>
 
@@ -497,11 +561,13 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   onChange={(e) => handleInputChange('apiKey', e.target.value)}
                   placeholder="sk-..."
                   className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onMouseMove={handleMouseMove}
                 />
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  onMouseMove={handleMouseMove}
                 >
                   {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -525,6 +591,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.topK}
                   onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onMouseMove={handleMouseMove}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   限制候选词汇数量 (1-100)
@@ -543,6 +610,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.topP}
                   onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onMouseMove={handleMouseMove}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   核采样概率 (0.0-1.0)
@@ -561,6 +629,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.temperature}
                   onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onMouseMove={handleMouseMove}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   输出随机性 (0.0-2.0)
@@ -576,6 +645,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
             onClick={handleResetForm}
             disabled={!hasChanges || loading}
             className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            onMouseMove={handleMouseMove}
           >
             <RotateCcw size={16} />
             <span>重置</span>
@@ -585,6 +655,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           <button
             onClick={onClose}
             className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            onMouseMove={handleMouseMove}
           >
             取消
           </button>
@@ -596,6 +667,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
+            onMouseMove={handleMouseMove}
           >
             {loading ? (
               <Loader2 size={16} className="animate-spin" />
@@ -607,7 +679,8 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </div>
         </div>
       </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 
