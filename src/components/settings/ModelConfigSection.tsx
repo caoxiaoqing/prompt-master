@@ -409,8 +409,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         top: 0,
         left: 0,
         right: 0,
-        bottom: 0,
-        backdropFilter: 'blur(2px)'
+        bottom: 0
       }}
       onClick={onClose}
     >
@@ -422,8 +421,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
         style={{
           zIndex: 100003,
-          position: 'relative',
-          maxHeight: '90vh'
+          position: 'relative'
         }}
       >
         <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
@@ -438,7 +436,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </button>
         </div>
 
-        <div className="p-6 space-y-6 overflow-y-auto" style={{ maxHeight: 'calc(90vh - 140px)' }}>
+        <div className="p-6 space-y-6">
           {/* Basic Information */}
           <div className="space-y-4">
             <div>
