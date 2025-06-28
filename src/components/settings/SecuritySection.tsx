@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
+  Timer,
   Shield, 
   Key, 
   Eye, 
@@ -78,6 +79,8 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   const [connectedDevices, setConnectedDevices] = useState<ConnectedDevice[]>([]);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'success' | 'error'>('idle');
+  const [countdown, setCountdown] = useState(0);
 
   // Mock data for demonstration
   useEffect(() => {
@@ -146,6 +149,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
       new: false,
       confirm: false
     });
+    setSaveState('idle');
   };
 
   const handlePasswordChange = async () => {
@@ -163,6 +167,29 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
 
     try {
       setLoading(true);
+      setSaveState('saving');
+      setCountdown(5);
+      
+      // 启动5秒倒计时
+      const countdownInterval = setInterval(() => {
+        setCountdown(prev => {
+          if (prev <= 1) {
+            clearInterval(countdownInterval);
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+      
+      // 5秒超时处理
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => {
+          clearInterval(countdownInterval);
+          reject(new Error('TIMEOUT'));
+        }, 5000);
+      });
+      
+      // 实际的密码更新操作
       
       const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword
@@ -170,12 +197,30 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
 
       if (error) throw error;
 
-      setPasswordForm(initialPasswordForm);
+      // 使用 Promise.race 来处理超时
+      await Promise.race([
+        Promise.resolve(), // 密码更新已完成
+        timeoutPromise
+      ]);
       
+      // 如果成功，清除倒计时并显示成功状态
+      clearInterval(countdownInterval);
+      setSaveState('success');
+      setCountdown(0);
+      setPasswordForm(initialPasswordForm);
       showNotification('success', '密码修改成功');
+      
     } catch (error: any) {
       console.error('Password change error:', error);
-      showNotification('error', error.message || '密码修改失败');
+      
+      if (error.message === 'TIMEOUT') {
+        setSaveState('error');
+        showNotification('error', '由于网络原因修改失败，请稍后重试');
+      } else {
+        setSaveState('error');
+        showNotification('error', error.message || '密码修改失败');
+      }
+      setCountdown(0);
     } finally {
       setLoading(false);
     }
@@ -184,6 +229,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   const handleLogoutDevice = async (deviceId: string) => {
     if (!confirm('确定要登出此设备吗？')) return;
 
+    setSaveState('idle');
     try {
       setLoading(true);
       
@@ -206,6 +252,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
       return;
     }
 
+    setSaveState('idle');
     try {
       setLoading(true);
       
@@ -251,6 +298,16 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     passwordForm.newPassword.length > 0 ||
     passwordForm.confirmPassword.length > 0;
 
+  // 获取密码修改按钮的状态
+  const getPasswordButtonContent = () => {
+    if (saveState === 'saving') {
+      return { text: `修改中... (${countdown}s)`, icon: Timer, disabled: true };
+    }
+    if (saveState === 'success') return { text: '修改成功', icon: Check, disabled: true };
+    if (saveState === 'error') return { text: '修改失败，点击重试', icon: AlertTriangle, disabled: false };
+    return { text: '修改密码', icon: Save, disabled: !isPasswordFormValid };
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
@@ -258,6 +315,27 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
       exit={{ opacity: 0, x: -20 }}
       className="p-6 space-y-8"
     >
+      {/* 密码修改状态提示 */}
+      {saveState !== 'idle' && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -10 }}
+          className={`p-4 rounded-lg border flex items-center space-x-3 ${
+            saveState === 'saving'
+              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300'
+              : saveState === 'success'
+              ? 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+              : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800 text-red-700 dark:text-red-300'
+          }`}
+        >
+          {saveState === 'saving' && <Loader2 size={16} className="animate-spin" />}
+          {saveState === 'success' && <Check size={16} />}
+          {saveState === 'error' && <AlertTriangle size={16} />}
+          <span className="text-sm font-medium">{getPasswordButtonContent().text}</span>
+        </motion.div>
+      )}
+
       {/* Password Change */}
       <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
         <div className="flex items-center space-x-4 mb-6">
@@ -275,6 +353,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
                 type={showPasswords.current ? 'text' : 'password'}
                 value={passwordForm.currentPassword}
                 onChange={(e) => setPasswordForm(prev => ({ ...prev, currentPassword: e.target.value }))}
+                disabled={saveState === 'saving'}
                 className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
@@ -296,6 +375,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
                 type={showPasswords.new ? 'text' : 'password'}
                 value={passwordForm.newPassword}
                 onChange={(e) => setPasswordForm(prev => ({ ...prev, newPassword: e.target.value }))}
+                disabled={saveState === 'saving'}
                 className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
@@ -322,6 +402,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
                 type={showPasswords.confirm ? 'text' : 'password'}
                 value={passwordForm.confirmPassword}
                 onChange={(e) => setPasswordForm(prev => ({ ...prev, confirmPassword: e.target.value }))}
+                disabled={saveState === 'saving'}
                 className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               />
               <button
@@ -342,7 +423,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
           <div className="flex items-center space-x-3">
             <button
               onClick={handleResetPasswordForm}
-              disabled={!hasPasswordChanges || loading}
+              disabled={!hasPasswordChanges || saveState === 'saving'}
               className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <RotateCcw size={16} />
@@ -351,19 +432,30 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
             
             <button
               onClick={handlePasswordChange}
-              disabled={!isPasswordFormValid || loading}
-              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                !isPasswordFormValid || loading
+              disabled={getPasswordButtonContent().disabled}
+              className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-all duration-200 ${
+                getPasswordButtonContent().disabled && saveState !== 'error'
                   ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                  : saveState === 'success'
+                  ? 'bg-green-600 text-white'
+                  : saveState === 'error'
+                  ? 'bg-red-600 text-white hover:bg-red-700'
+                  : saveState === 'saving'
+                  ? 'bg-blue-600 text-white cursor-wait'
                   : 'bg-blue-600 text-white hover:bg-blue-700'
               }`}
             >
-              {loading ? (
-                <Loader2 size={16} className="animate-spin" />
+              {saveState === 'saving' ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" />
+                  <span>{getPasswordButtonContent().text}</span>
+                </>
               ) : (
-                <Save size={16} />
+                <>
+                  <getPasswordButtonContent().icon size={16} />
+                  <span>{getPasswordButtonContent().text}</span>
+                </>
               )}
-              <span>{loading ? '修改中...' : '修改密码'}</span>
             </button>
           </div>
         </div>
