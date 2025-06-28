@@ -1,0 +1,704 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* 防止页面跳动的全局样式 - 彻底修复版本 */
+html {
+  /* 确保页面始终有滚动条，避免出现/消失时的布局变化 */
+  overflow-y: scroll !important;
+  /* 平滑滚动 */
+  scroll-behavior: smooth;
+  /* 防止滚动条导致的布局变化 */
+  scrollbar-gutter: stable;
+}
+
+body {
+  /* 防止内容变化时的布局抖动 */
+  overflow-x: hidden;
+  /* 确保页面始终有滚动条，避免出现/消失时的布局变化 */
+  min-height: 100vh;
+  /* 防止页面跳动的关键设置 */
+  position: relative;
+  /* 确保body有稳定的布局 */
+  contain: layout;
+}
+
+/* 确保所有容器都有稳定的布局 */
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  /* 防止内容变化时的布局抖动 */
+  position: relative;
+  /* 确保根容器有稳定的布局 */
+  contain: layout;
+}
+
+/* 防止动画过程中的布局抖动 */
+* {
+  box-sizing: border-box;
+}
+
+/* 优化聊天区域滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.7);
+}
+
+/* 暗色模式下的滚动条 */
+.dark ::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.5);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 85, 99, 0.7);
+}
+
+/* 聊天消息区域专用滚动条样式 */
+.chat-messages-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-messages-container::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.6);
+  border-radius: 3px;
+}
+
+.chat-messages-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
+.dark .chat-messages-container::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dark .chat-messages-container::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.6);
+}
+
+.dark .chat-messages-container::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 85, 99, 0.8);
+}
+
+/* 防止文本选择时的布局变化 */
+::selection {
+  background-color: rgba(59, 130, 246, 0.3);
+}
+
+.dark ::selection {
+  background-color: rgba(59, 130, 246, 0.4);
+}
+
+/* 确保所有可点击元素都有稳定的尺寸 */
+button, input, textarea, select {
+  flex-shrink: 0;
+  /* 防止按钮状态变化时的布局抖动 */
+  contain: layout style;
+}
+
+/* 防止图片加载时的布局抖动 */
+img {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* 优化动画性能，减少重绘 */
+.motion-safe {
+  will-change: transform, opacity;
+}
+
+/* 确保模态框不会影响页面布局 */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 50;
+}
+
+/* 防止内容溢出导致的布局变化 */
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+/* 确保滑块组件有稳定的样式 */
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-track {
+  background: #e5e7eb;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.dark .slider::-webkit-slider-track {
+  background: #374151;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.slider::-moz-range-thumb {
+  height: 20px;
+  width: 20px;
+  border-radius: 50%;
+  background: #3b82f6;
+  cursor: pointer;
+  border: 2px solid #ffffff;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+/* ===== Z-INDEX 层级管理系统 ===== */
+/* 
+  统一的 z-index 层级系统，确保所有弹出元素都在正确的层级上
+  层级从低到高：
+  1. 基础内容: z-index: 1-10
+  2. 固定元素: z-index: 100-999
+  3. 下拉菜单: z-index: 10000-19999
+  4. 工具提示: z-index: 20000-29999
+  5. 模态框: z-index: 30000-39999
+  6. 全局通知: z-index: 40000-49999
+  7. 调试工具: z-index: 50000+
+*/
+
+/* 基础内容层级 */
+.z-base {
+  z-index: 1;
+}
+
+.z-content {
+  z-index: 10;
+}
+
+/* 固定元素层级 */
+.z-header {
+  z-index: 100;
+}
+
+.z-sidebar {
+  z-index: 200;
+}
+
+.z-toolbar {
+  z-index: 300;
+}
+
+.z-statusbar {
+  z-index: 400;
+}
+
+/* 下拉菜单层级 */
+.z-dropdown {
+  z-index: 10000 !important;
+}
+
+.z-context-menu {
+  z-index: 15000 !important;
+}
+
+/* 工具提示层级 */
+.z-tooltip {
+  z-index: 20000 !important;
+}
+
+.z-popover {
+  z-index: 25000 !important;
+}
+
+/* 模态框层级 */
+.z-modal-backdrop {
+  z-index: 30000 !important;
+}
+
+.z-modal {
+  z-index: 30001 !important;
+}
+
+.z-modal-nested {
+  z-index: 35000 !important;
+}
+
+/* 全局通知层级 */
+.z-notification {
+  z-index: 40000 !important;
+}
+
+.z-toast {
+  z-index: 45000 !important;
+}
+
+/* 调试和开发工具层级 */
+.z-debug {
+  z-index: 50000 !important;
+}
+
+/* 应用所有弹出元素的通用样式 */
+.popup-element {
+  /* 确保弹出元素不影响页面布局 */
+  position: absolute !important;
+  /* 防止弹出元素影响其他元素 */
+  contain: layout !important;
+  /* 优化渲染性能 */
+  will-change: transform, opacity !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 工具提示通用样式 */
+.tooltip-base {
+  @apply popup-element z-tooltip;
+  /* 确保工具提示不会被点击 */
+  pointer-events: none !important;
+  /* 工具提示的基础样式 */
+  padding: 0.5rem 0.75rem;
+  background-color: rgba(17, 24, 39, 0.9);
+  color: white;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  /* 确保在暗色模式下也正确显示 */
+  backdrop-filter: blur(4px);
+}
+
+.dark .tooltip-base {
+  background-color: rgba(55, 65, 81, 0.9);
+}
+
+/* 下拉菜单通用样式 */
+.dropdown-base {
+  @apply popup-element z-dropdown;
+  /* 下拉菜单的基础样式 */
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  min-width: 120px;
+  /* 确保菜单项可以被点击 */
+  pointer-events: auto !important;
+}
+
+.dark .dropdown-base {
+  background: #374151;
+  border-color: #4b5563;
+}
+
+/* 模态框通用样式 */
+.modal-base {
+  @apply z-modal;
+  /* 模态框的基础样式 */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  /* 防止模态框影响页面滚动 */
+  overflow: hidden !important;
+  /* 确保模态框不会影响其他元素 */
+  contain: layout !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 模态框背景 */
+.modal-backdrop-base {
+  @apply z-modal-backdrop;
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  background-color: rgba(0, 0, 0, 0.5);
+  /* 防止背景影响其他元素 */
+  contain: layout !important;
+}
+
+/* 防止点击时的页面跳动 - 关键修复 */
+.task-item {
+  /* 确保点击时不会触发页面重排 */
+  contain: layout style !important;
+  /* 防止点击时的焦点变化导致滚动 */
+  scroll-margin: 0 !important;
+  /* 确保任务项有稳定的布局 */
+  position: relative !important;
+  /* 防止任何可能的布局抖动 */
+  will-change: background-color !important;
+  /* 确保点击时不会触发页面重排 */
+  transform: translateZ(0) !important;
+  /* 设置较低的 z-index，确保不会遮挡菜单 */
+  z-index: 1 !important;
+}
+
+/* 防止任务项点击时的所有可能的布局变化 */
+.task-item:focus,
+.task-item:active,
+.task-item:hover {
+  /* 确保状态变化时不影响布局 */
+  contain: layout style !important;
+  /* 防止焦点变化导致的滚动 */
+  scroll-margin: 0 !important;
+  /* 使用 transform 而不是改变其他属性 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止侧边栏动画时的布局变化 */
+.sidebar-container {
+  /* 确保侧边栏在动画过程中不影响其他元素 */
+  contain: layout !important;
+  /* 防止动画时的重绘影响 */
+  will-change: width, opacity !important;
+  /* 确保侧边栏有稳定的布局 */
+  position: relative !important;
+  /* 防止动画时的布局抖动 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止主内容区域在侧边栏动画时发生位移 */
+.main-content {
+  /* 确保主内容区域有稳定的布局 */
+  contain: layout !important;
+  /* 防止内容变化时的布局抖动 */
+  position: relative !important;
+  overflow: hidden !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止文件夹展开/收起时的布局变化 */
+.folder-content {
+  /* 确保文件夹内容变化时不影响其他元素 */
+  contain: layout !important;
+  /* 防止布局抖动 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止任务列表变化时的布局抖动 */
+.task-list {
+  /* 确保任务列表有稳定的布局 */
+  contain: layout !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止模态框出现时的页面跳动 */
+.modal-backdrop {
+  /* 确保模态框不会影响页面布局 */
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  /* 防止模态框影响页面滚动 */
+  overflow: hidden !important;
+  /* 确保模态框不会影响其他元素 */
+  contain: layout !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+  /* 使用统一的模态框层级 */
+  z-index: 30000 !important;
+}
+
+/* 防止输入框聚焦时的布局变化 */
+input:focus, textarea:focus, select:focus {
+  /* 防止聚焦时的轮廓影响布局 */
+  outline-offset: 0 !important;
+  /* 确保聚焦时不影响布局 */
+  contain: layout !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止按钮状态变化时的布局抖动 */
+button {
+  /* 确保按钮状态变化时不影响布局 */
+  contain: layout style !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止悬停状态变化时的布局抖动 */
+.hover-effect {
+  /* 确保悬停效果不影响布局 */
+  contain: layout !important;
+  /* 使用 transform 而不是改变尺寸 */
+  transition: transform 0.2s ease, background-color 0.2s ease !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+.hover-effect:hover {
+  /* 使用 transform 而不是改变 margin/padding */
+  transform: translateY(-1px) translateZ(0) !important;
+}
+
+/* 防止动画过程中的布局变化 */
+.animate-item {
+  /* 确保动画元素不影响其他元素的布局 */
+  contain: layout !important;
+  /* 优化动画性能 */
+  will-change: transform, opacity !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止文本内容变化时的布局抖动 */
+.text-content {
+  /* 确保文本内容变化时不影响布局 */
+  contain: layout !important;
+  /* 防止文本换行导致的布局变化 */
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止图标变化时的布局抖动 */
+.icon-container {
+  /* 确保图标容器有固定尺寸 */
+  width: 1rem !important;
+  height: 1rem !important;
+  flex-shrink: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  /* 防止布局变化 */
+  contain: layout !important;
+  transform: translateZ(0) !important;
+}
+
+/* 防止加载状态变化时的布局抖动 */
+.loading-container {
+  /* 确保加载容器有稳定的布局 */
+  contain: layout !important;
+  /* 防止加载动画影响其他元素 */
+  position: relative !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 防止工具提示出现时的布局变化 */
+.tooltip {
+  /* 确保工具提示不影响页面布局 */
+  position: absolute !important;
+  /* 使用统一的工具提示层级 */
+  z-index: 20000 !important;
+  /* 防止工具提示影响其他元素 */
+  pointer-events: none !important;
+  /* 防止布局变化 */
+  contain: layout !important;
+  transform: translateZ(0) !important;
+}
+
+/* 聊天消息区域的滚动优化 */
+.chat-scroll-container {
+  /* 确保聊天滚动容器有稳定的布局 */
+  contain: layout !important;
+  /* 优化滚动性能 */
+  will-change: scroll-position !important;
+  /* 防止滚动时的布局变化 */
+  transform: translateZ(0) !important;
+  /* 平滑滚动 */
+  scroll-behavior: smooth !important;
+}
+
+/* 防止聊天消息动画影响滚动 */
+.chat-message {
+  /* 确保消息动画不影响滚动容器 */
+  contain: layout !important;
+  /* 优化动画性能 */
+  will-change: transform, opacity !important;
+  /* 防止布局变化 */
+  transform: translateZ(0) !important;
+}
+
+/* 确保聊天输入区域不影响消息滚动 */
+.chat-input-area {
+  /* 固定输入区域布局 */
+  contain: layout !important;
+  /* 防止输入变化影响其他区域 */
+  transform: translateZ(0) !important;
+}
+
+/* 强制所有可能导致布局变化的元素使用硬件加速 */
+.task-item,
+.folder-content,
+.task-list,
+.sidebar-container,
+.main-content,
+.modal-backdrop,
+button,
+input,
+textarea,
+select {
+  /* 强制使用硬件加速，防止布局重排 */
+  transform: translateZ(0) !important;
+  /* 确保所有元素都有稳定的布局 */
+  contain: layout !important;
+}
+
+/* 防止任何可能的滚动触发的布局变化 */
+* {
+  /* 防止滚动时的布局变化 */
+  scroll-margin: 0 !important;
+  scroll-padding: 0 !important;
+}
+
+/* 确保所有交互元素都不会导致页面跳动 */
+*:focus,
+*:active,
+*:hover {
+  /* 防止状态变化时的布局抖动 */
+  contain: layout !important;
+  /* 使用硬件加速 */
+  transform: translateZ(0) !important;
+}
+
+/* 特别针对任务项的点击处理 */
+.task-item * {
+  /* 确保任务项内的所有元素都不会导致布局变化 */
+  contain: layout !important;
+  transform: translateZ(0) !important;
+  /* 防止任何可能的焦点变化 */
+  scroll-margin: 0 !important;
+}
+
+/* 防止任何可能的页面重排 */
+.task-item:before,
+.task-item:after {
+  content: none !important;
+}
+
+/* 确保任务项的所有子元素都有稳定的布局 */
+.task-item > *,
+.task-item > * > * {
+  contain: layout !important;
+  transform: translateZ(0) !important;
+}
+
+/* 确保所有弹出元素都使用正确的层级 */
+[role="tooltip"],
+.tooltip,
+[data-tooltip] {
+  z-index: 20000 !important;
+}
+
+[role="menu"],
+[role="listbox"],
+[role="combobox"],
+.dropdown,
+.context-menu {
+  z-index: 10000 !important;
+}
+
+[role="dialog"],
+[role="alertdialog"],
+.modal,
+.dialog {
+  z-index: 30001 !important;
+}
+
+.modal-backdrop,
+.overlay {
+  z-index: 30000 !important;
+}
+
+/* 确保通知和提示元素在最上层 */
+.notification,
+.toast,
+.alert {
+  z-index: 40000 !important;
+}
+
+/* 特殊情况：确保某些特定元素的层级 */
+.monaco-editor .suggest-widget {
+  z-index: 25000 !important;
+}
+
+.monaco-editor .context-view {
+  z-index: 15000 !important;
+}
+
+/* 确保所有 Framer Motion 动画元素都有正确的层级 */
+[data-framer-motion] {
+  /* 如果是弹出元素，确保有正确的层级 */
+  position: relative;
+}
+
+/* 针对特定的弹出元素类型 */
+.popover-content {
+  z-index: 25000 !important;
+}
+
+.dropdown-content {
+  z-index: 10000 !important;
+}
+
+.tooltip-content {
+  z-index: 20000 !important;
+}
+
+.modal-content {
+  z-index: 30001 !important;
+}
+
+/* 确保所有绝对定位的元素都有合适的层级 */
+[style*="position: absolute"],
+[style*="position: fixed"] {
+  /* 如果没有明确的 z-index，给一个基础值 */
+  z-index: 1;
+}
+
+/* 覆盖任何可能的内联样式 */
+.force-top-layer {
+  z-index: 99999 !important;
+  position: absolute !important;
+  contain: layout !important;
+}
