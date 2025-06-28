@@ -420,8 +420,8 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         onClick={(e) => e.stopPropagation()}
         className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
         style={{
-          maxHeight: '80vh',
-          zIndex: 100003,
+          zIndex: 100010,
+          zIndex: 100011,
           position: 'relative',
           display: 'flex',
           flexDirection: 'column'

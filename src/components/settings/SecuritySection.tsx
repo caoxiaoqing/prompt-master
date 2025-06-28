@@ -515,7 +515,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
             style={{
-              zIndex: 100002,
+              zIndex: 100005,
               position: 'fixed',
               top: 0,
               left: 0,
@@ -531,7 +531,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
               onClick={(e) => e.stopPropagation()}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-md border border-gray-200 dark:border-gray-700"
               style={{
-                zIndex: 100003,
+                zIndex: 100006,
                 position: 'relative'
               }}
             >
