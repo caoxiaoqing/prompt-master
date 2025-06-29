@@ -315,7 +315,7 @@ const StatusBar: React.FC = () => {
         {/* 右侧状态指示器 */}
         <div className="flex items-center space-x-3 flex-shrink-0">
           {/* 同步状态指示器 */}
-          <SyncStatusIndicator />
+          {/* 移除同步状态指示器 */}
           
           {/* 连接状态 */}
           <div className="flex items-center space-x-1">

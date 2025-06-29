@@ -463,7 +463,7 @@ const FolderSidebar: React.FC = () => {
       </div>
 
       {/* 底部统计栏 - 显示文件夹数、任务数和数据状态 */}
-      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0">
+      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0 hidden">
         <div className="flex items-center justify-between text-xs">
           {/* 左侧统计信息 */}
           <div className="flex items-center space-x-6">
@@ -487,7 +487,9 @@ const FolderSidebar: React.FC = () => {
           </div>
           
           {/* 右侧数据状态 */}
-          <div className="flex items-center space-x-2"></div>
+          <div className="flex items-center space-x-2">
+            {/* 状态信息已移除 */}
+          </div>
         </div>
       </div>
 
