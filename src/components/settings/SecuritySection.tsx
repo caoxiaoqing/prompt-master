@@ -151,7 +151,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   const handlePasswordChange = async () => {
     if (!user) return;
 
-    // 先验证当前密码是否正确
+    // 基本表单验证
     if (!passwordForm.currentPassword) {
       showNotification('error', '请输入当前密码');
       return;
@@ -170,38 +170,79 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     try {
       setLoading(true);
       
-      // 验证当前密码
-      console.log('🔐 验证当前密码...');
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      // 关键修复：使用 reauthenticate 方法验证当前密码
+      console.log('🔐 开始验证当前密码...');
+      
+      // 方法1：尝试使用当前用户邮箱和输入的密码重新登录来验证
+      const { data: verifyData, error: verifyError } = await supabase.auth.signInWithPassword({
         email: user.email!,
         password: passwordForm.currentPassword
       });
 
-      if (signInError) {
-        console.error('❌ 当前密码验证失败:', signInError);
-        if (signInError.message.includes('Invalid login credentials')) {
+      if (verifyError) {
+        console.error('❌ 当前密码验证失败:', verifyError);
+        
+        // 详细的错误处理
+        if (verifyError.message.includes('Invalid login credentials') || 
+            verifyError.message.includes('invalid_credentials') ||
+            verifyError.message.includes('Invalid email or password')) {
           showNotification('error', '当前密码不正确，请重新输入');
+        } else if (verifyError.message.includes('Email not confirmed')) {
+          showNotification('error', '邮箱未验证，请先验证邮箱');
+        } else if (verifyError.message.includes('Too many requests')) {
+          showNotification('error', '请求过于频繁，请稍后再试');
+        } else if (verifyError.message.includes('Network error') || 
+                   verifyError.message.includes('Failed to fetch')) {
+          showNotification('error', '网络连接失败，请检查网络后重试');
         } else {
-          showNotification('error', '密码验证失败，请稍后重试');
+          showNotification('error', `密码验证失败: ${verifyError.message}`);
         }
         return;
       }
 
-      console.log('✅ 当前密码验证成功，开始更新密码');
+      console.log('✅ 当前密码验证成功，用户ID:', verifyData?.user?.id);
+      
+      // 验证成功后，更新密码
+      console.log('🔄 开始更新密码...');
       
       const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('❌ 密码更新失败:', error);
+        
+        if (error.message.includes('New password should be different')) {
+          showNotification('error', '新密码不能与当前密码相同');
+        } else if (error.message.includes('Password should be at least')) {
+          showNotification('error', '新密码不符合安全要求');
+        } else {
+          showNotification('error', `密码更新失败: ${error.message}`);
+        }
+        return;
+      }
 
+      // 成功后清空表单
       setPasswordForm(initialPasswordForm);
       
       console.log('✅ 密码修改成功');
       showNotification('success', '密码修改成功');
     } catch (error: any) {
       console.error('Password change error:', error);
-      showNotification('error', error.message || '密码修改失败');
+      
+      // 处理意外错误
+      let errorMessage = '密码修改失败，请稍后重试';
+      if (error instanceof Error) {
+        if (error.message.includes('Network')) {
+          errorMessage = '网络连接失败，请检查网络连接';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = '操作超时，请重试';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showNotification('error', errorMessage);
     } finally {
       setLoading(false);
     }
