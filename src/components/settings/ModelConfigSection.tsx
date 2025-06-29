@@ -162,7 +162,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     console.log('🔄 开始保存新模型:', modelData.name);
 
     try {
-      setLoading(true);
+      // 不在这里设置 loading，让模态框内部处理
       
       // 调用数据库添加操作
       const { model: newModel } = await authService.addCustomModel(user.id, {
@@ -199,8 +199,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       showNotification('error', error instanceof Error ? error.message : '保存失败，请稍后重试');
       // 错误时不要关闭模态框，让用户可以重试
       throw error; // 重新抛出错误，阻止模态框关闭
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -211,7 +209,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     console.log('🔄 开始更新模型:', modelId, modelData.name);
 
     try {
-      setLoading(true);
+      // 不在这里设置 loading，让模态框内部处理
       
       // 调用数据库更新操作
       await authService.updateCustomModel(user.id, modelId, {
@@ -245,8 +243,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       showNotification('error', error instanceof Error ? error.message : '更新失败，请稍后重试');
       // 错误时不要关闭模态框，让用户可以重试
       throw error; // 重新抛出错误，阻止模态框关闭
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -417,9 +413,10 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         {showAddModal && (
           <ModelConfigModal
             model={editingModel}
-            onSave={async (modelData) => {
+            onSave={async (modelData, setModalLoading) => {
               try {
                 console.log('📝 模态框保存操作开始');
+                setModalLoading(true);
                 
                 if (editingModel) {
                   // 更新现有模型
@@ -437,6 +434,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                 // 保存失败时不关闭模态框，让用户可以重试
                 console.error('❌ 保存失败，保持模态框打开:', error);
                 // 错误已经在 handleSaveModel 或 handleUpdateModel 中处理了
+              } finally {
+                setModalLoading(false);
               }
             }}
             onClose={() => {
@@ -444,7 +443,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
               setShowAddModal(false);
               setEditingModel(null);
             }}
-            loading={loading}
           />
         )}
       </AnimatePresence>
@@ -454,17 +452,18 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
 
 interface ModelConfigModalProps {
   model: ModelConfig | null;
-  onSave: (model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => void;
+  onSave: (model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>, setLoading: (loading: boolean) => void) => void;
   onClose: () => void;
-  loading: boolean;
 }
 
 const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   model,
   onSave,
-  onClose,
-  loading
+  onClose
 }) => {
+  // 模态框内部的加载状态
+  const [modalLoading, setModalLoading] = useState(false);
+  
   // 初始表单数据
   const initialFormData = {
     name: model?.name || '',
@@ -486,7 +485,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
 
   const handleInputChange = (field: string, value: string | number) => {
-    if (loading) return; // 防止在保存过程中修改表单
+    if (modalLoading) return; // 防止在保存过程中修改表单
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -497,7 +496,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
 
   const handleSave = () => {
     // 防止重复提交
-    if (loading) return;
+    if (modalLoading) return;
     
     // 验证表单
     if (!formData.name.trim() || !formData.baseUrl.trim() || !formData.apiKey.trim()) {
@@ -516,7 +515,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         topP: formData.topP,
         temperature: formData.temperature
       }
-    });
+    }, setModalLoading);
   };
 
   // 当模态框关闭时重置状态
@@ -580,7 +579,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            disabled={loading}
+            disabled={modalLoading}
           >
             <X size={20} />
           </button>
@@ -607,7 +606,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="例如：GPT-4 Custom"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={loading}
+                disabled={modalLoading}
               />
             </div>
 
@@ -621,7 +620,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 onChange={(e) => handleInputChange('baseUrl', e.target.value)}
                 placeholder="https://api.openai.com/v1"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                disabled={loading}
+                disabled={modalLoading}
               />
             </div>
 
@@ -636,13 +635,13 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   onChange={(e) => handleInputChange('apiKey', e.target.value)}
                   placeholder="sk-..."
                   className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
+                  disabled={modalLoading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  disabled={loading}
+                  disabled={modalLoading}
                 >
                   {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -666,7 +665,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.topK}
                   onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
+                  disabled={modalLoading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   限制候选词汇数量 (1-100)
@@ -685,7 +684,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.topP}
                   onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
+                  disabled={modalLoading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   核采样概率 (0.0-1.0)
@@ -704,7 +703,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.temperature}
                   onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  disabled={loading}
+                  disabled={modalLoading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   输出随机性 (0.0-2.0)
@@ -718,7 +717,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
           <button
             onClick={handleResetForm}
-            disabled={!hasChanges || loading}
+            disabled={!hasChanges || modalLoading}
             className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             <RotateCcw size={16} />
@@ -728,26 +727,26 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           <div className="flex items-center space-x-3">
           <button
             onClick={onClose}
-            disabled={loading}
+            disabled={modalLoading}
             className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             取消
           </button>
           <button
             onClick={handleSave}
-            disabled={!isFormValid || !hasChanges || loading}
+            disabled={!isFormValid || !hasChanges || modalLoading}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              !isFormValid || !hasChanges || loading
+              !isFormValid || !hasChanges || modalLoading
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
           >
-            {loading ? (
+            {modalLoading ? (
               <Loader2 size={16} className="animate-spin" />
             ) : (
               <Save size={16} />
             )}
-            <span>{loading ? '保存中...' : '保存配置'}</span>
+            <span>{modalLoading ? '保存中...' : '保存配置'}</span>
           </button>
           </div>
         </div>
