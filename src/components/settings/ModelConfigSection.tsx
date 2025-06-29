@@ -169,30 +169,12 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     try {
       console.log('🧪 开始测试模型连接:', { modelName: model.name, baseUrl: model.baseUrl });
       
-      // 动态导入 OpenAI
       try {
-        // 动态导入 OpenAI
-        const OpenAIModule = await import('openai');
-        const OpenAI = OpenAIModule.default;
-      
-        // 创建 OpenAI 客户端
-        const openai = new OpenAI({
-          baseURL: model.baseUrl,
-          apiKey: model.apiKey,
-          dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
-        });
+        // 使用 OpenAIService 进行连接测试
+        const { OpenAIService } = await import('../../lib/openaiService');
+        await OpenAIService.testConnection(model.baseUrl, model.apiKey, model.name);
         
-        // 发送简单的测试请求
-        const completion = await openai.chat.completions.create({
-          messages: [
-            { role: 'system', content: 'You are a helpful assistant.' },
-            { role: 'user', content: 'Hello, this is a connection test.' }
-          ],
-          model: model.name,
-          max_tokens: 10
-        });
-        
-        console.log('✅ 模型连接测试成功:', completion.choices[0]?.message?.content);
+        console.log('✅ 模型连接测试成功');
         
         setTestResult({
           id: modelId,
@@ -201,8 +183,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         });
         
         showNotification('success', `模型 "${model.name}" 连接测试成功`);
-      } catch (apiError) {
-        console.error('❌ API 调用失败:', apiError);
+      } catch (apiError: any) {
+        console.error('❌ API 调用失败:', apiError.message);
         
         let errorMessage = '连接失败，请检查配置';
         if (apiError instanceof Error) {
@@ -230,8 +212,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         showNotification('error', `模型 "${model.name}" 连接测试失败: ${errorMessage}`);
       }
       
-    } catch (error) {
-      console.error('❌ 导入 OpenAI 模块失败:', error);
+    } catch (error: any) {
+      console.error('❌ 导入 OpenAI 模块失败:', error.message);
       
       let errorMessage = '测试失败: 无法加载 OpenAI 模块';
       if (error instanceof Error) {

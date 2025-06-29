@@ -235,7 +235,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // 创建 OpenAI 客户端
       const canCreateClient = createOpenAIClient(state.selectedCustomModel);
       if (!canCreateClient) {
-        throw new Error('无法创建 OpenAI 客户端，请检查模型配置');
+        throw new Error('无法创建 AI 客户端，请检查模型配置');
       }
       
       console.log('🚀 发送请求到 OpenAI API...', {
@@ -247,56 +247,64 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       // 使用 OpenAIService 发送请求
       try {
-        const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
-          state.selectedCustomModel.baseUrl,
-          state.selectedCustomModel.apiKey,
-          conversationContext,
-          state.selectedCustomModel.name,
-          temperature,
-          maxTokens,
-          state.selectedCustomModel.topP || 1.0,
-          state.selectedCustomModel.topK || 50
-        );
-
-        const assistantMessage: ChatMessage = {
-          id: loadingMessage.id,
-          role: 'assistant',
-          content: responseContent,
-          timestamp: new Date(),
-          tokenUsage: tokenUsage,
-          responseTime: responseTime
-        };
-
-        setMessages(prev => 
-          prev.map(msg => 
-            msg.id === loadingMessage.id ? assistantMessage : msg
-          )
-        );
-
-        // 更新任务状态，包含完整的聊天历史和响应数据
-        const finalMessages = messages.map(msg => 
-          msg.id === loadingMessage.id ? assistantMessage : msg
-        );
-        updateTaskWithMessages(finalMessages);
+        // 动态导入 OpenAIService
+        const { OpenAIService } = await import('../lib/openaiService');
         
-        // 单独更新任务的响应时间和token使用情况
-        setTimeout(() => {
-          if (state.currentTask) {
-            const updatedTokenUsage = tokenUsage;
-            const updatedResponseTime = responseTime;
-            
-            const updatedTask = {
-              ...state.currentTask,
-              responseTime: updatedResponseTime,
-              tokenUsage: updatedTokenUsage,
-              updatedAt: new Date()
-            };
-            dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-          }
-        }, 100);
-      } catch (apiError) {
-        console.error('API 调用失败:', apiError);
-        throw apiError;
+        try {
+          const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
+            state.selectedCustomModel.baseUrl,
+            state.selectedCustomModel.apiKey,
+            conversationContext,
+            state.selectedCustomModel.name,
+            temperature,
+            maxTokens,
+            state.selectedCustomModel.topP || 1.0,
+            state.selectedCustomModel.topK || 50
+          );
+
+          const assistantMessage: ChatMessage = {
+            id: loadingMessage.id,
+            role: 'assistant',
+            content: responseContent,
+            timestamp: new Date(),
+            tokenUsage: tokenUsage,
+            responseTime: responseTime
+          };
+
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === loadingMessage.id ? assistantMessage : msg
+            )
+          );
+
+          // 更新任务状态，包含完整的聊天历史和响应数据
+          const finalMessages = messages.map(msg => 
+            msg.id === loadingMessage.id ? assistantMessage : msg
+          );
+          updateTaskWithMessages(finalMessages);
+          
+          // 单独更新任务的响应时间和token使用情况
+          setTimeout(() => {
+            if (state.currentTask) {
+              const updatedTokenUsage = tokenUsage;
+              const updatedResponseTime = responseTime;
+              
+              const updatedTask = {
+                ...state.currentTask,
+                responseTime: updatedResponseTime,
+                tokenUsage: updatedTokenUsage,
+                updatedAt: new Date()
+              };
+              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+            }
+          }, 100);
+        } catch (apiError: any) {
+          console.error('API 调用失败:', apiError.message);
+          throw apiError;
+        }
+      } catch (importError: any) {
+        console.error('导入 OpenAIService 失败:', importError.message);
+        throw new Error(`无法加载 AI 服务模块: ${importError.message}`);
       }
 
       // 响应完成后再次确保输入框聚焦
@@ -311,8 +319,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // 设置用户友好的错误消息
       let errorMessage = '发送消息失败，请稍后重试';
-      
-      if (error instanceof Error) {
+
+      if (error instanceof Error) { 
         console.error('错误详情:', error.message);
         
         // 处理常见的 API 错误
@@ -330,7 +338,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           errorMessage = '模型配置错误，请检查模型名称和参数';
         }
       }
-      
+
       setApiError(errorMessage);
       
       setMessages(prev => 
