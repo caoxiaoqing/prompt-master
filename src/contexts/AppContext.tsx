@@ -2,7 +2,8 @@ import React, { createContext, useContext, useReducer, ReactNode, useEffect } fr
 import { PromptVersion, TestResult, ABTest, Comment, PromptTask, Folder, ProjectData } from '../types';
 import { useAuth } from './AuthContext';
 import { TaskService } from '../lib/taskService';
-import { syncService, SyncOperation } from '../lib/syncService';
+import { syncService } from '../lib/syncService';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface AppState {
   versions: PromptVersion[];
@@ -313,7 +314,8 @@ const AppContext = createContext<{
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  const { user } = useAuth();
+  const { user } = useAuth(); 
+  const { loadFromLocalStorage } = useLocalStorage();
   
   // 🔄 数据同步到数据库的函数
   const syncToDatabase = async (force = false) => {
@@ -334,6 +336,42 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     }
   };
 
+  // 初始化时从本地存储加载数据
+  useEffect(() => {
+    console.log('🔄 初始化时从本地存储加载数据...');
+    
+    // 从本地存储加载数据
+    const localData = loadFromLocalStorage();
+    
+    if (localData) {
+      console.log('✅ 从本地存储加载数据成功，更新应用状态');
+      
+      // 确保至少有默认文件夹
+      const folders = localData.folders.length > 0 
+        ? localData.folders 
+        : [
+            {
+              id: 'default',
+              name: '默认文件夹',
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              color: '#3B82F6'
+            }
+          ];
+      
+      // 更新应用状态
+      dispatch({ 
+        type: 'LOAD_FROM_DATABASE', 
+        payload: { 
+          folders, 
+          tasks: localData.tasks 
+        } 
+      });
+    } else {
+      console.log('ℹ️ 本地存储中没有数据，使用初始状态');
+    }
+  }, [loadFromLocalStorage]);
+
   // 📥 用户登录后从数据库加载数据
   useEffect(() => {
     const loadUserData = async () => {
@@ -344,17 +382,12 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         dispatch({ type: 'SET_SYNCING', payload: true });
 
         // 新的任务持久化系统暂时使用本地存储
-        // TODO: 实现从数据库加载任务数据的功能
-        const folders = state.folders.length > 0 ? state.folders : [
-          {
-            id: 'default',
-            name: '默认文件夹',
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            color: '#3B82F6'
-          }
-        ];
-        const tasks: PromptTask[] = [];
+        // 从本地存储加载数据
+        const localData = loadFromLocalStorage();
+        
+        // 如果本地存储有数据，使用本地数据
+        const folders = localData?.folders || state.folders;
+        const tasks = localData?.tasks || state.tasks;
         
         // 确保至少有默认文件夹
         if (folders.length === 0) {

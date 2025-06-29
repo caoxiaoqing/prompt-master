@@ -19,8 +19,9 @@ import {
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskService } from '../lib/taskService';
-import { Folder as FolderType, PromptTask, ProjectData } from '../types';
-import { syncService, SyncOperation } from '../lib/syncService'; 
+import { Folder as FolderType, PromptTask } from '../types';
+import { syncService, SyncOperation } from '../lib/syncService';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const FolderSidebar: React.FC = () => {
   const { state, dispatch, syncToDatabase } = useApp();
@@ -32,6 +33,7 @@ const FolderSidebar: React.FC = () => {
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { saveToLocalStorage } = useLocalStorage();
   
   const filteredTasks = state.tasks.filter(task =>
     task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -49,16 +51,23 @@ const FolderSidebar: React.FC = () => {
     
     dispatch({ type: 'ADD_FOLDER', payload: newFolder });
     setShowCreateFolder(false);
+    
+    // 保存到本地存储
+    saveToLocalStorage([...state.folders, newFolder], state.tasks);
 
     // 🔄 实时记录文件夹操作到数据库
     if (user) {
       try {
         await DatabaseService.recordFolderOperation({
           type: 'create',
+          // 更新状态
           folderId: newFolder.id,
           folderName: newFolder.name,
           userId: user.id
         });
+          
+          // 保存到本地存储
+          saveToLocalStorage(projectData.folders, projectData.tasks);
         console.log('✅ 文件夹创建操作已记录到数据库');
       } catch (error) {
         console.error('❌ 记录文件夹创建操作失败:', error);
@@ -92,6 +101,10 @@ const FolderSidebar: React.FC = () => {
     
     dispatch({ type: 'ADD_TASK', payload: newTask });
     dispatch({ type: 'SET_CURRENT_TASK', payload: newTask });
+    
+    // 保存到本地存储
+    saveToLocalStorage(state.folders, [...state.tasks, newTask]);
+    
     setShowCreateTask(null);
 
     // 同步任务创建到数据库 - 使用 syncService 直接添加到同步队列
@@ -130,7 +143,19 @@ const FolderSidebar: React.FC = () => {
     if (confirm('确定要删除这个文件夹吗？其中的任务将移动到默认文件夹。')) {
       const folder = state.folders.find(f => f.id === folderId);
       
+      // 获取更新后的任务列表（将被删除文件夹中的任务移到默认文件夹）
+      const updatedTasks = state.tasks.map(t => 
+        t.folderId === folderId ? { ...t, folderId: 'default' } : t
+      );
+      
+      // 获取更新后的文件夹列表
+      const updatedFolders = state.folders.filter(f => f.id !== folderId);
+      
+      // 更新状态
       dispatch({ type: 'DELETE_FOLDER', payload: folderId });
+      
+      // 保存到本地存储
+      saveToLocalStorage(updatedFolders, updatedTasks);
 
       // 🔄 实时记录文件夹删除操作到数据库
       if (user && folder) {
@@ -153,7 +178,14 @@ const FolderSidebar: React.FC = () => {
     if (confirm('确定要删除这个任务吗？')) {
       const task = state.tasks.find(t => t.id === taskId);
       
+      // 获取更新后的任务列表
+      const updatedTasks = state.tasks.filter(t => t.id !== taskId);
+      
+      // 更新状态
       dispatch({ type: 'DELETE_TASK', payload: taskId });
+      
+      // 保存到本地存储
+      saveToLocalStorage(state.folders, updatedTasks);
 
       // 同步任务删除到数据库 - 使用 syncService 直接添加到同步队列
       if (user) {
@@ -189,7 +221,15 @@ const FolderSidebar: React.FC = () => {
     const folder = state.folders.find(f => f.id === folderId);
     if (folder) {
       const updatedFolder = { ...folder, name: newName, updatedAt: new Date() };
+      
+      // 更新状态
       dispatch({ type: 'UPDATE_FOLDER', payload: updatedFolder });
+      
+      // 保存到本地存储
+      saveToLocalStorage(
+        state.folders.map(f => f.id === folderId ? updatedFolder : f),
+        state.tasks
+      );
 
       // 🔄 实时记录文件夹重命名操作到数据库
       if (user) {
@@ -213,7 +253,15 @@ const FolderSidebar: React.FC = () => {
     const task = state.tasks.find(t => t.id === taskId);
     if (task) {
       const updatedTask = { ...task, name: newName, updatedAt: new Date() };
+      
+      // 更新状态
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+      
+      // 保存到本地存储
+      saveToLocalStorage(
+        state.folders,
+        state.tasks.map(t => t.id === taskId ? updatedTask : t)
+      );
 
       // 同步任务更新到数据库 - 使用 syncService 直接添加到同步队列
       if (user) {
@@ -260,10 +308,20 @@ const FolderSidebar: React.FC = () => {
     if (draggedTask && draggedTask !== targetFolderId) {
       const task = state.tasks.find(t => t.id === draggedTask);
       
+      // 更新状态
       dispatch({
         type: 'MOVE_TASK',
         payload: { taskId: draggedTask, targetFolderId }
       });
+      
+      // 保存到本地存储
+      if (task) {
+        const updatedTask = { ...task, folderId: targetFolderId, updatedAt: new Date() };
+        saveToLocalStorage(
+          state.folders,
+          state.tasks.map(t => t.id === draggedTask ? updatedTask : t)
+        );
+      }
 
       // 🔄 实时记录任务移动操作到数据库
       if (user && task) {
@@ -288,7 +346,7 @@ const FolderSidebar: React.FC = () => {
     const projectData: ProjectData = {
       folders: state.folders,
       tasks: state.tasks,
-      version: '1.0.0',
+      version: '1.1.0',
       exportedAt: new Date()
     };
     

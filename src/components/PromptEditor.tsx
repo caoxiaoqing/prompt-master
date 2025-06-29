@@ -27,6 +27,7 @@ import {
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTaskPersistence } from '../hooks/useTaskPersistence';
+import { useLocalStorage } from '../hooks/useLocalStorage';
 import { TaskService, ModelParams } from '../lib/taskService';
 import { mockModels } from '../utils/mockData';
 import { PromptVersion, ChatMessage } from '../types';
@@ -46,6 +47,7 @@ const PromptEditor: React.FC = () => {
   const [promptCopied, setPromptCopied] = useState(false);
   const [currentChatHistory, setCurrentChatHistory] = useState<ChatMessage[]>([]);
   const [currentLoadedVersion, setCurrentLoadedVersion] = useState<PromptVersion | null>(null);
+  const { saveToLocalStorage } = useLocalStorage();
 
   // 获取当前任务的模型参数
   const getCurrentModelParams = (): ModelParams => {
@@ -222,16 +224,24 @@ const PromptEditor: React.FC = () => {
         const updatedTask = {
           ...state.currentTask,
           content: prompt,
-          temperature,
-          maxTokens,
+          temperature: temperature,
+          maxTokens: maxTokens,
           updatedAt: new Date()
         };
+        
+        // 更新状态
         dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+        
+        // 保存到本地存储
+        saveToLocalStorage(
+          state.folders,
+          state.tasks.map(t => t.id === state.currentTask?.id ? updatedTask : t)
+        );
       }, 1000); // 1秒后自动保存
 
       return () => clearTimeout(timeoutId);
     }
-  }, [prompt, temperature, maxTokens, state.currentTask?.id, dispatch]);
+  }, [prompt, temperature, maxTokens, state.currentTask, dispatch, saveToLocalStorage, state.folders, state.tasks]);
 
   // 检查是否有未保存的更改
   const hasUnsavedChanges = () => {
@@ -291,6 +301,12 @@ const PromptEditor: React.FC = () => {
     
     dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
     
+    // 保存到本地存储
+    saveToLocalStorage(
+      state.folders,
+      state.tasks.map(t => t.id === state.currentTask?.id ? updatedTask : t)
+    );
+    
     // 立即更新当前加载的版本状态
     setCurrentLoadedVersion(version);
     
@@ -338,6 +354,23 @@ const PromptEditor: React.FC = () => {
         updatedAt: new Date()
       };
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+    }
+    
+    // 保存到本地存储
+    if (state.currentTask) {
+      saveToLocalStorage(
+        state.folders,
+        state.tasks.map(t => t.id === state.currentTask?.id ? {
+          ...t,
+          content: version.content || '',
+          temperature: version.temperature || 0.7,
+          maxTokens: version.maxTokens || 1000,
+          model: version.model || state.selectedModel,
+          currentChatHistory: version.chatHistory || [],
+          currentLoadedVersionId: version.id,
+          updatedAt: new Date()
+        } : t)
+      );
     }
     
     // 关闭历史版本弹框
