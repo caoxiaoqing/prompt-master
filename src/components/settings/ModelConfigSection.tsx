@@ -216,11 +216,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       parameters: modelData.parameters
     });
 
-    // 添加超时保护
-    const timeoutPromise = new Promise((_, reject) => {
-      setTimeout(() => reject(new Error('操作超时，请重试')), 30000); // 30秒超时
-    });
-
     try {
       // 调用数据库添加操作前进行基本验证
       if (!modelData.name.trim() || !modelData.baseUrl.trim() || !modelData.apiKey.trim()) {
@@ -278,10 +273,14 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       if (error instanceof Error) {
         if (error.message.includes('模型已存在')) {
           errorMessage = error.message;
-        } else if (error.message.includes('Database connection unavailable')) {
-          errorMessage = '数据库连接不可用，请检查网络连接';
-        } else if (error.message.includes('timeout')) {
-          errorMessage = '操作超时，请重试';
+        } else if (error.message.includes('Database connection unavailable') || error.message.includes('网络')) {
+          errorMessage = '网络连接异常：无法连接到服务器。请检查您的网络连接状态，确保网络稳定后重试。';
+        } else if (error.message.includes('timeout') || error.message.includes('超时')) {
+          errorMessage = '操作超时：服务器响应时间过长。这可能是由于网络延迟或服务器负载过高导致的。请检查网络连接或稍后重试。';
+        } else if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+          errorMessage = '网络请求失败：无法与服务器通信。请检查网络连接，确认服务器状态正常后重试。';
+        } else if (error.message.includes('AbortError')) {
+          errorMessage = '请求被中断：操作被用户或系统取消。如需继续，请重新尝试操作。';
         } else {
           errorMessage = error.message;
         }
@@ -359,10 +358,14 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       if (error instanceof Error) {
         if (error.message.includes('模型已存在')) {
           errorMessage = error.message;
-        } else if (error.message.includes('Database connection unavailable')) {
-          errorMessage = '数据库连接不可用，请检查网络连接';
-        } else if (error.message.includes('timeout')) {
-          errorMessage = '操作超时，请重试';
+        } else if (error.message.includes('Database connection unavailable') || error.message.includes('网络')) {
+          errorMessage = '网络连接异常：无法连接到服务器。请检查您的网络连接状态，确保网络稳定后重试。';
+        } else if (error.message.includes('timeout') || error.message.includes('超时')) {
+          errorMessage = '操作超时：服务器响应时间过长。这可能是由于网络延迟或服务器负载过高导致的。请检查网络连接或稍后重试。';
+        } else if (error.message.includes('fetch') || error.message.includes('Failed to fetch')) {
+          errorMessage = '网络请求失败：无法与服务器通信。请检查网络连接，确认服务器状态正常后重试。';
+        } else if (error.message.includes('AbortError')) {
+          errorMessage = '请求被中断：操作被用户或系统取消。如需继续，请重新尝试操作。';
         } else {
           errorMessage = error.message;
         }
