@@ -29,6 +29,7 @@ const StatusBar: React.FC = () => {
 
   // 检查用户是否配置了自定义模型
   const hasCustomModels = userInfo?.custom_models && userInfo.custom_models.length > 0;
+  const selectedCustomModel = state.selectedCustomModel;
   
   // 如果用户没有打开任何任务文件，只显示基本信息
   if (!state.currentTask) {
@@ -92,7 +93,7 @@ const StatusBar: React.FC = () => {
     );
   }
   
-  // 如果用户没有配置任何自定义模型，不显示模型相关信息
+  // 如果用户没有配置任何自定义模型，显示提示信息
   if (!hasCustomModels) {
     const basicStatusItems = [
       {
@@ -175,11 +176,86 @@ const StatusBar: React.FC = () => {
     );
   }
   
+  // 如果用户有自定义模型但没有选择，显示提示
+  if (hasCustomModels && !selectedCustomModel) {
+    const statusItems = [
+      {
+        icon: Hash,
+        label: 'Prompt Tokens',
+        value: currentPromptTokens.toString(),
+        color: 'text-orange-600 dark:text-orange-400'
+      },
+      {
+        icon: Database,
+        label: 'Total Tokens',
+        value: currentTokenUsage ? currentTokenUsage.total.toString() : '0',
+        color: 'text-pink-600 dark:text-pink-400'
+      },
+      {
+        icon: Cpu,
+        label: '模型',
+        value: '请选择模型',
+        color: 'text-yellow-600 dark:text-yellow-400'
+      }
+    ];
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-6 overflow-x-auto">
+            {statusItems.map((item, index) => (
+              <motion.div
+                key={item.label}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="flex items-center space-x-2 min-w-0 flex-shrink-0"
+              >
+                <item.icon size={14} className={`${item.color} flex-shrink-0`} />
+                <div className="flex items-center space-x-1 text-xs">
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">
+                    {item.label}:
+                  </span>
+                  <span className={`font-mono font-semibold ${item.color}`}>
+                    {item.value}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+          
+          {/* 右侧状态指示器 */}
+          <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* 连接状态 */}
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">在线</span>
+            </div>
+            
+            {/* 当前时间 */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+              {new Date().toLocaleTimeString('zh-CN', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
+  
+  // 显示选中模型的详细信息
   const statusItems = [
     {
       icon: Cpu,
       label: '模型',
-      value: state.selectedModel,
+      value: selectedCustomModel?.name || '未选择',
       color: 'text-purple-600 dark:text-purple-400'
     },
     {
@@ -195,16 +271,22 @@ const StatusBar: React.FC = () => {
       color: 'text-pink-600 dark:text-pink-400'
     },
     {
-      icon: Thermometer,
-      label: 'Temperature',
-      value: state.currentTask?.temperature.toString() || '0.7',
-      color: 'text-yellow-600 dark:text-yellow-400'
+      icon: Hash,
+      label: 'Top-K',
+      value: selectedCustomModel?.topK?.toString() || '50',
+      color: 'text-blue-600 dark:text-blue-400'
     },
     {
       icon: Zap,
-      label: 'Max Tokens',
-      value: state.currentTask?.maxTokens.toString() || '1000',
-      color: 'text-indigo-600 dark:text-indigo-400'
+      label: 'Top-P',
+      value: selectedCustomModel?.topP?.toString() || '1.0',
+      color: 'text-green-600 dark:text-green-400'
+    },
+    {
+      icon: Thermometer,
+      label: 'Temperature',
+      value: selectedCustomModel?.temperature?.toString() || '0.8',
+      color: 'text-yellow-600 dark:text-yellow-400'
     }
   ];
 
