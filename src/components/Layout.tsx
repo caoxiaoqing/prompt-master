@@ -11,22 +11,19 @@ import {
   ChevronLeft,
   Folder,
   LogOut,
-  ChevronDown,
-  Database
+  ChevronDown
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import StatusBar from './StatusBar';
 import FolderSidebar from './FolderSidebar';
 import UserSettings from './settings/UserSettings';
-import TaskDashboard from './TaskDashboard';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, dispatch } = useApp();
   const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showTaskDashboard, setShowTaskDashboard] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleSidebar = () => {
@@ -159,17 +156,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   </div>
                 </button>
                 
-                <button
-                  onClick={() => {
-                    setShowUserMenu(false);
-                    setShowTaskDashboard(true);
-                  }}
-                  className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 text-gray-700 dark:text-gray-300 transition-colors"
-                >
-                  <Database size={16} />
-                  <span>任务管理</span>
-                </button>
-                
                 {/* User Dropdown Menu - 精确控制的下拉菜单 */}
                 {showUserMenu && (
                   <div 
@@ -279,26 +265,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* User Settings Modal */}
       {showSettings && (
         <UserSettings onClose={() => setShowSettings(false)} />
-      )}
-
-      {/* Task Dashboard Modal */}
-      {showTaskDashboard && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-6xl h-[90vh] flex flex-col border border-gray-200 dark:border-gray-700">
-            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
-              <h2 className="text-xl font-bold text-gray-900 dark:text-white">任务管理</h2>
-              <button
-                onClick={() => setShowTaskDashboard(false)}
-                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            <div className="flex-1 overflow-hidden">
-              <TaskDashboard />
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );
