@@ -8,6 +8,7 @@ interface AuthContextType {
   userInfo: UserInfo | null
   session: Session | null
   loading: boolean
+  refreshUserInfo: () => void
   signUp: (email: string, password: string, userName: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<void>
   signOut: () => Promise<void>
@@ -34,6 +35,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
   const [isInitialized, setIsInitialized] = useState(false)
+  const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0)
 
   useEffect(() => {
     let isMounted = true
@@ -90,7 +92,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // 获取用户详细信息
             try {
               console.log('📊 获取用户详细信息...')
-              const { userInfo: fetchedUserInfo } = await authService.getCurrentUser()
+              const { userInfo: fetchedUserInfo } = await authService.getCurrentUser(true) // 强制刷新
               if (isMounted) {
                 setUserInfo(fetchedUserInfo)
                 console.log('✅ 用户详细信息获取成功:', fetchedUserInfo?.user_name)
@@ -126,7 +128,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
             // 获取用户详细信息
             try {
               console.log('📊 获取初始用户详细信息...')
-              const { userInfo: initialUserInfo } = await authService.getCurrentUser()
+              const { userInfo: initialUserInfo } = await authService.getCurrentUser(true) // 强制刷新
               if (isMounted) {
                 setUserInfo(initialUserInfo)
                 console.log('✅ 初始用户详细信息获取成功:', initialUserInfo?.user_name)
@@ -191,6 +193,24 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       }
     }
   }, []) // 空依赖数组，只在组件挂载时执行一次
+
+  // 监听数据刷新触发器，重新获取用户信息
+  useEffect(() => {
+    const refreshUserInfo = async () => {
+      if (!user || dataRefreshTrigger === 0) return
+      
+      try {
+        console.log('🔄 刷新用户信息...')
+        const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+        setUserInfo(refreshedUserInfo)
+        console.log('✅ 用户信息刷新成功')
+      } catch (error) {
+        console.error('❌ 刷新用户信息失败:', error)
+      }
+    }
+
+    refreshUserInfo()
+  }, [dataRefreshTrigger, user])
 
   const signUp = async (email: string, password: string, userName: string) => {
     try {
@@ -265,6 +285,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       console.log('📝 更新用户信息:', updates)
       const updatedUserInfo = await authService.updateUserInfo(user.id, updates)
       setUserInfo(updatedUserInfo)
+      // 触发数据刷新
+      setDataRefreshTrigger(prev => prev + 1)
       console.log('✅ 用户信息更新成功')
     } catch (error) {
       console.error('❌ 用户信息更新失败:', error)
@@ -277,6 +299,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     userInfo,
     session,
     loading,
+    refreshUserInfo: () => setDataRefreshTrigger(prev => prev + 1),
     signUp,
     signIn,
     signOut,

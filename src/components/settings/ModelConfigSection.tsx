@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { UserInfo, authService } from '../../lib/supabase';
+import { useAuth } from '../../contexts/AuthContext';
 
 interface ModelConfig {
   id: string;
@@ -52,6 +53,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   loading,
   setLoading
 }) => {
+  const { refreshUserInfo } = useAuth();
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
@@ -104,6 +106,9 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       showNotification('success', '模型配置已删除');
       
+      // 刷新用户信息以获取最新数据
+      refreshUserInfo();
+      
       // 如果删除的是默认模型且还有其他模型，更新本地状态
       if (updatedModels.length > 0) {
         const newDefaultModel = updatedModels.find(m => m.isDefault);
@@ -140,6 +145,9 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       setModels(updatedModels);
       
       showNotification('success', '默认模型已更新');
+     
+     // 刷新用户信息以获取最新数据
+     refreshUserInfo();
     } catch (error) {
       console.error('Set default model error:', error);
       showNotification('error', error instanceof Error ? error.message : '设置失败，请稍后重试');
@@ -178,6 +186,9 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       });
       
       console.log('✅ 数据库保存成功:', newModel);
+      
+      // 刷新用户信息以获取最新数据
+      refreshUserInfo();
       
       // 更新本地状态
       const newModelConfig: ModelConfig = {
@@ -228,6 +239,9 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       });
       
       console.log('✅ 数据库更新成功');
+      
+      // 刷新用户信息以获取最新数据
+      refreshUserInfo();
       
       // 更新本地状态
       setModels(prev => prev.map(m => 

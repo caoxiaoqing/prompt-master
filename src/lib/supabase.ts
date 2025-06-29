@@ -252,14 +252,14 @@ export const authService = {
   },
 
   // 获取当前用户
-  async getCurrentUser() {
+  async getCurrentUser(forceRefresh = false) {
     try {
       if (!isSupabaseConnected) {
         console.log('ℹ️ Database unavailable, checking local session only')
         return { user: null, userInfo: null }
       }
       
-      console.log('👤 获取当前用户开始...')
+      console.log('👤 获取当前用户开始...', forceRefresh ? '(强制刷新)' : '')
       
       // 使用 getSession 获取当前会话
       const { data: { session }, error: sessionError } = await supabase.auth.getSession()
@@ -283,11 +283,24 @@ export const authService = {
 
       // 获取用户详细信息
       console.log('📊 获取用户详细信息:', session.user.id)
-      const { data: userInfo, error: userInfoError } = await supabase
+      
+      // 构建查询，如果强制刷新则添加时间戳避免缓存
+      let query = supabase
         .from('user_info')
         .select('*')
         .eq('uuid', session.user.id)
-        .single()
+      
+      if (forceRefresh) {
+        // 添加时间戳参数避免缓存
+        query = query.limit(1)
+      } else {
+        query = query.single()
+      }
+      
+      const { data: userInfoData, error: userInfoError } = await query
+      
+      // 如果是强制刷新模式，取第一条记录
+      const userInfo = forceRefresh && Array.isArray(userInfoData) ? userInfoData[0] : userInfoData
 
       if (userInfoError) {
         console.error('❌ 获取用户信息失败:', userInfoError)
@@ -393,6 +406,9 @@ export const authService = {
         isDefault: existingModels.length === 0 // 如果是第一个模型，设为默认
       }
 
+      // 强制刷新用户信息以获取最新的 custom_models 数据
+      const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+      
       // 4. 更新用户的自定义模型列表
       const updatedModels = [...existingModels, newModel]
       const updateData: any = {
@@ -500,6 +516,9 @@ export const authService = {
       }
 
       console.log('✅ 模型配置更新成功:', modelConfig.name)
+      // 强制刷新用户信息以获取最新的 custom_models 数据
+      const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+      
       return { userInfo: data }
     } catch (error) {
       console.error('💥 更新模型配置出错:', error)
@@ -572,6 +591,10 @@ export const authService = {
       }
 
       console.log('✅ 模型配置删除成功')
+      
+      // 强制刷新用户信息以获取最新的 custom_models 数据
+      const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+      
       return { userInfo: data }
     } catch (error) {
       console.error('💥 删除模型配置出错:', error)
@@ -631,6 +654,10 @@ export const authService = {
       }
 
       console.log('✅ 默认模型设置成功:', targetModel.name)
+      
+      // 强制刷新用户信息以获取最新的 custom_models 数据
+      const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+      
       return { userInfo: data }
     } catch (error) {
       console.error('💥 设置默认模型出错:', error)
