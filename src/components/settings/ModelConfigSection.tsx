@@ -208,13 +208,20 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const handleSaveModel = async (modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
     if (!user) return;
     
-    console.log('🔄 开始保存新模型:', modelData.name);
+    console.log('🔄 开始保存新模型:', {
+      name: modelData.name,
+      baseUrl: modelData.baseUrl,
+      hasApiKey: !!modelData.apiKey,
+      parameters: modelData.parameters
+    });
 
     try {
       // 调用数据库添加操作前进行基本验证
       if (!modelData.name.trim() || !modelData.baseUrl.trim() || !modelData.apiKey.trim()) {
         throw new Error('请填写所有必填字段');
       }
+      
+      console.log('📝 调用数据库添加操作...');
       
       // 调用数据库添加操作
       const { model: newModel } = await authService.addCustomModel(user.id, {
@@ -248,15 +255,35 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       // 在后台静默刷新用户信息，不影响当前页面
       setTimeout(() => {
+        console.log('🔄 后台刷新用户信息');
         refreshUserInfo();
       }, 100);
       
       showNotification('success', '模型配置已添加');
+      
+      // 成功后返回 true，表示可以关闭模态框
+      return true;
     } catch (error) {
       console.error('Save model error:', error);
-      showNotification('error', error instanceof Error ? error.message : '保存失败，请稍后重试');
-      // 错误时不要关闭模态框，让用户可以重试
-      throw error; // 重新抛出错误，阻止模态框关闭
+      
+      // 提供更详细的错误信息
+      let errorMessage = '保存失败，请稍后重试';
+      if (error instanceof Error) {
+        if (error.message.includes('模型已存在')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('Database connection unavailable')) {
+          errorMessage = '数据库连接不可用，请检查网络连接';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = '操作超时，请重试';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showNotification('error', errorMessage);
+      
+      // 错误时返回 false，阻止模态框关闭
+      return false;
     }
   };
 
@@ -264,13 +291,21 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const handleUpdateModel = async (modelId: string, modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
     if (!user) return;
     
-    console.log('🔄 开始更新模型:', modelId, modelData.name);
+    console.log('🔄 开始更新模型:', {
+      modelId,
+      name: modelData.name,
+      baseUrl: modelData.baseUrl,
+      hasApiKey: !!modelData.apiKey,
+      parameters: modelData.parameters
+    });
 
     try {
       // 调用数据库更新操作前进行基本验证
       if (!modelData.name.trim() || !modelData.baseUrl.trim() || !modelData.apiKey.trim()) {
         throw new Error('请填写所有必填字段');
       }
+      
+      console.log('📝 调用数据库更新操作...');
       
       // 调用数据库更新操作
       await authService.updateCustomModel(user.id, modelId, {
@@ -301,15 +336,35 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       // 在后台静默刷新用户信息，不影响当前页面
       setTimeout(() => {
+        console.log('🔄 后台刷新用户信息');
         refreshUserInfo();
       }, 100);
       
       showNotification('success', '模型配置已更新');
+      
+      // 成功后返回 true，表示可以关闭模态框
+      return true;
     } catch (error) {
       console.error('Update model error:', error);
-      showNotification('error', error instanceof Error ? error.message : '更新失败，请稍后重试');
-      // 错误时不要关闭模态框，让用户可以重试
-      throw error; // 重新抛出错误，阻止模态框关闭
+      
+      // 提供更详细的错误信息
+      let errorMessage = '更新失败，请稍后重试';
+      if (error instanceof Error) {
+        if (error.message.includes('模型已存在')) {
+          errorMessage = error.message;
+        } else if (error.message.includes('Database connection unavailable')) {
+          errorMessage = '数据库连接不可用，请检查网络连接';
+        } else if (error.message.includes('timeout')) {
+          errorMessage = '操作超时，请重试';
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      showNotification('error', errorMessage);
+      
+      // 错误时返回 false，阻止模态框关闭
+      return false;
     }
   };
 
@@ -480,28 +535,32 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         {showAddModal && (
           <ModelConfigModal
             model={editingModel}
-            onSave={async (modelData, setModalLoading) => {
+            onSave={async (modelData, setModalLoading, onSuccess) => {
               console.log('📝 模态框保存操作开始:', modelData.name);
               
               try {
                 setModalLoading(true);
                 
+                let success = false;
+                
                 if (editingModel) {
                   // 更新现有模型
-                  await handleUpdateModel(editingModel.id, modelData);
+                  success = await handleUpdateModel(editingModel.id, modelData);
                 } else {
                   // 添加新模型
-                  await handleSaveModel(modelData);
+                  success = await handleSaveModel(modelData);
                 }
                 
-                // 只有在保存成功后才关闭模态框
-                console.log('✅ 保存成功，关闭模态框');
-                setShowAddModal(false);
-                setEditingModel(null);
+                if (success) {
+                  // 只有在保存成功后才关闭模态框
+                  console.log('✅ 保存成功，关闭模态框');
+                  onSuccess();
+                } else {
+                  console.log('❌ 保存失败，保持模态框打开');
+                }
               } catch (error) {
                 console.error('❌ 保存失败:', error);
-                // 错误已经在 handleSaveModel 或 handleUpdateModel 中通过 showNotification 处理了
-                // 这里不需要额外处理，只需要确保不关闭模态框
+                // 错误已经在具体的处理函数中处理了
               } finally {
                 // 关键修复：确保无论成功还是失败都重置加载状态
                 setModalLoading(false);
@@ -521,7 +580,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
 
 interface ModelConfigModalProps {
   model: ModelConfig | null;
-  onSave: (model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>, setLoading: (loading: boolean) => void) => void;
+  onSave: (
+    model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>, 
+    setLoading: (loading: boolean) => void,
+    onSuccess: () => void
+  ) => void;
   onClose: () => void;
 }
 
@@ -724,7 +787,10 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         topP: formData.topP,
         temperature: formData.temperature
       }
-    }, setModalLoading);
+    }, setModalLoading, () => {
+      // 成功回调：关闭模态框
+      onClose();
+    });
   };
 
   // 当模态框关闭时重置状态

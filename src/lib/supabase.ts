@@ -355,12 +355,25 @@ export const authService = {
         throw new Error('Database connection unavailable. Model configuration cannot be saved at this time.')
       }
 
-      console.log('📝 添加自定义模型配置:', userId, modelConfig.name)
+      console.log('📝 添加自定义模型配置:', {
+        userId,
+        modelName: modelConfig.name,
+        baseUrl: modelConfig.baseUrl,
+        hasApiKey: !!modelConfig.apiKey,
+        parameters: {
+          topK: modelConfig.topK,
+          topP: modelConfig.topP,
+          temperature: modelConfig.temperature
+        }
+      })
 
       // 1. 生成唯一的 model_id
       const modelId = Date.now().toString()
 
+      console.log('🔑 生成模型ID:', modelId)
+
       // 2. 检查是否已存在相同配置的模型
+      console.log('🔍 检查是否存在重复模型...')
       const { data: existingUser, error: fetchError } = await supabase
         .from('user_info')
         .select('custom_models')
@@ -373,6 +386,7 @@ export const authService = {
       }
 
       const existingModels = existingUser?.custom_models || []
+      console.log('📋 现有模型数量:', existingModels.length)
       
       // 检查是否存在相同配置的模型
       const duplicateModel = existingModels.find((model: any) => 
@@ -385,8 +399,11 @@ export const authService = {
       )
 
       if (duplicateModel) {
+        console.log('❌ 发现重复模型:', duplicateModel.name)
         throw new Error('模型已存在：相同配置的模型已经添加过了')
       }
+
+      console.log('✅ 无重复模型，继续创建')
 
       // 3. 创建新的模型配置
       const newModel = {
@@ -401,7 +418,14 @@ export const authService = {
         isDefault: existingModels.length === 0 // 如果是第一个模型，设为默认
       }
 
+      console.log('🆕 新模型配置:', {
+        id: newModel.id,
+        name: newModel.name,
+        isDefault: newModel.isDefault
+      })
+
       // 强制刷新用户信息以获取最新的 custom_models 数据
+      console.log('🔄 强制刷新用户信息...')
       const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
       
       // 4. 更新用户的自定义模型列表
@@ -409,6 +433,11 @@ export const authService = {
       const updateData = {
         custom_models: updatedModels
       }
+
+      console.log('💾 开始更新数据库...', {
+        totalModels: updatedModels.length,
+        newModelId: newModel.id
+      })
 
       const { data, error } = await supabase
         .from('user_info')
@@ -419,14 +448,24 @@ export const authService = {
 
       if (error) {
         console.error('❌ 添加模型配置失败:', error)
-        throw error
+        throw new Error(`数据库更新失败: ${error.message}`)
       }
 
-      console.log('✅ 模型配置添加成功:', newModel.name)
+      console.log('✅ 模型配置添加成功:', {
+        modelName: newModel.name,
+        modelId: newModel.id,
+        totalModelsInDB: data.custom_models?.length || 0
+      })
+      
       return { model: newModel, userInfo: data }
     } catch (error) {
       console.error('💥 添加模型配置出错:', error)
-      throw error
+      
+      // 提供更详细的错误信息
+      if (error instanceof Error) {
+        throw new Error(`添加模型失败: ${error.message}`)
+      }
+      throw new Error('添加模型失败: 未知错误')
     }
   },
 
@@ -444,9 +483,21 @@ export const authService = {
         throw new Error('Database connection unavailable. Model configuration cannot be updated at this time.')
       }
 
-      console.log('📝 更新自定义模型配置:', userId, modelId, modelConfig.name)
+      console.log('📝 更新自定义模型配置:', {
+        userId,
+        modelId,
+        modelName: modelConfig.name,
+        baseUrl: modelConfig.baseUrl,
+        hasApiKey: !!modelConfig.apiKey,
+        parameters: {
+          topK: modelConfig.topK,
+          topP: modelConfig.topP,
+          temperature: modelConfig.temperature
+        }
+      })
 
       // 1. 获取当前用户的模型列表
+      console.log('🔍 获取当前用户模型列表...')
       const { data: existingUser, error: fetchError } = await supabase
         .from('user_info')
         .select('custom_models')
@@ -455,10 +506,11 @@ export const authService = {
 
       if (fetchError) {
         console.error('❌ 获取用户信息失败:', fetchError)
-        throw fetchError
+        throw new Error(`获取用户信息失败: ${fetchError.message}`)
       }
 
       const existingModels = existingUser?.custom_models || []
+      console.log('📋 现有模型数量:', existingModels.length)
       
       // 2. 检查是否存在相同配置的其他模型（排除当前编辑的模型）
       const duplicateModel = existingModels.find((model: any) => 
@@ -472,10 +524,12 @@ export const authService = {
       )
 
       if (duplicateModel) {
+        console.log('❌ 发现重复模型:', duplicateModel.name)
         throw new Error('模型已存在：相同配置的模型已经添加过了')
       }
 
       // 3. 更新模型配置
+      console.log('🔄 更新模型配置...')
       const updatedModels = existingModels.map((model: any) => 
         model.id === modelId 
           ? {
@@ -494,8 +548,14 @@ export const authService = {
       // 4. 检查是否找到了要更新的模型
       const targetModel = existingModels.find((model: any) => model.id === modelId)
       if (!targetModel) {
+        console.log('❌ 要更新的模型不存在:', modelId)
         throw new Error('要更新的模型不存在')
       }
+
+      console.log('💾 开始更新数据库...', {
+        modelId,
+        modelName: modelConfig.name
+      })
 
       const { data, error } = await supabase
         .from('user_info')
@@ -506,15 +566,24 @@ export const authService = {
 
       if (error) {
         console.error('❌ 更新模型配置失败:', error)
-        throw error
+        throw new Error(`数据库更新失败: ${error.message}`)
       }
 
-      console.log('✅ 模型配置更新成功:', modelConfig.name)
+      console.log('✅ 模型配置更新成功:', {
+        modelName: modelConfig.name,
+        modelId,
+        totalModelsInDB: data.custom_models?.length || 0
+      })
       
       return { userInfo: data }
     } catch (error) {
       console.error('💥 更新模型配置出错:', error)
-      throw error
+      
+      // 提供更详细的错误信息
+      if (error instanceof Error) {
+        throw new Error(`更新模型失败: ${error.message}`)
+      }
+      throw new Error('更新模型失败: 未知错误')
     }
   },
 
