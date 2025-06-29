@@ -544,14 +544,22 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   }, []);
 
   const isFormValid = 
-    formData.name.trim().length > 0 &&
-    formData.baseUrl.trim().length > 0 &&
-    formData.apiKey.trim().length > 0 &&
-    formData.topK > 0 &&
-    formData.topP >= 0 &&
-    formData.topP <= 1 &&
-    formData.temperature >= 0 &&
+    formData.name.trim() !== '' &&
+    formData.baseUrl.trim() !== '' &&
+    formData.apiKey.trim() !== '';
     formData.temperature <= 2;
+  // 调试信息
+  console.log('🔍 表单验证状态:', {
+    name: formData.name.trim(),
+    nameValid: formData.name.trim().length > 0,
+    baseUrl: formData.baseUrl.trim(),
+    baseUrlValid: formData.baseUrl.trim().length > 0,
+    apiKey: formData.apiKey.trim(),
+    apiKeyValid: formData.apiKey.trim().length > 0,
+    isFormValid,
+    modalLoading
+  });
+
 
   // 检查表单是否有变化
   const hasChanges = 
@@ -684,7 +692,11 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   min="1"
                   max="100"
                   value={formData.topK}
-                  onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = value === '' ? 50 : parseInt(value);
+                    handleInputChange('topK', isNaN(numValue) ? 50 : Math.max(1, Math.min(100, numValue)));
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={modalLoading}
                 />
@@ -703,7 +715,11 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   max="1"
                   step="0.1"
                   value={formData.topP}
-                  onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = value === '' ? 1.0 : parseFloat(value);
+                    handleInputChange('topP', isNaN(numValue) ? 1.0 : Math.max(0, Math.min(1, numValue)));
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={modalLoading}
                 />
@@ -722,7 +738,11 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   max="2"
                   step="0.1"
                   value={formData.temperature}
-                  onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const numValue = value === '' ? 0.8 : parseFloat(value);
+                    handleInputChange('temperature', isNaN(numValue) ? 0.8 : Math.max(0, Math.min(2, numValue)));
+                  }}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   disabled={modalLoading}
                 />
