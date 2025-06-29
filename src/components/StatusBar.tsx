@@ -12,6 +12,7 @@ import {
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskService } from '../lib/taskService';
+import SyncStatusIndicator from './SyncStatusIndicator';
 
 const StatusBar: React.FC = () => {
   const { state } = useApp();
@@ -83,6 +84,9 @@ const StatusBar: React.FC = () => {
           
           {/* 右侧状态指示器 */}
           <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* 同步状态指示器 */}
+            <SyncStatusIndicator />
+            
             {/* 连接状态 */}
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -166,6 +170,9 @@ const StatusBar: React.FC = () => {
           
           {/* 右侧状态指示器 */}
           <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* 同步状态指示器 */}
+            <SyncStatusIndicator />
+            
             {/* 连接状态 */}
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -222,6 +229,9 @@ const StatusBar: React.FC = () => {
           
           {/* 右侧状态指示器 */}
           <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* 同步状态指示器 */}
+            <SyncStatusIndicator />
+            
             {/* 连接状态 */}
             <div className="flex items-center space-x-1">
               <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
@@ -313,6 +323,9 @@ const StatusBar: React.FC = () => {
         
         {/* 右侧状态指示器 */}
         <div className="flex items-center space-x-3 flex-shrink-0">
+          {/* 同步状态指示器 */}
+          <SyncStatusIndicator />
+          
           {/* 连接状态 */}
           <div className="flex items-center space-x-1">
             <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
