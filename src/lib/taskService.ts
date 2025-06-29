@@ -248,6 +248,7 @@ export class TaskService {
       }
       
       throw error
+      }
   }
 
   /**
