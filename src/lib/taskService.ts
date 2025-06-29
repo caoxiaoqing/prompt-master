@@ -46,7 +46,7 @@ export class TaskService {
   static async testConnection(userId: string, timeoutMs: number = 10000): Promise<boolean> {
     
     try {
-      console.log('🧪 测试数据库连接...', { userId })
+      console.log('🧪 测试数据库连接... 直接 return true', { userId })
 
       return true
       
