@@ -91,21 +91,29 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   };
 
   const handleDeleteModel = async (modelId: string) => {
-    if (!confirm('确定要删除这个模型配置吗？')) return;
+    const modelToDelete = models.find(m => m.id === modelId);
+    if (!modelToDelete) {
+      showNotification('error', '要删除的模型不存在');
+      return;
+    }
+    
+    if (!confirm(`确定要删除模型 "${modelToDelete.name}" 吗？此操作不可撤销。`)) return;
     if (!user) return;
 
     try {
       setLoading(true);
       
-      console.log('🗑️ 开始删除模型:', modelId);
+      console.log('🗑️ 开始删除模型:', { modelId, modelName: modelToDelete.name });
       
       // 调用数据库删除操作
       const { userInfo: updatedUserInfo } = await authService.deleteCustomModel(user.id, modelId);
       
       console.log('✅ 数据库删除成功，更新本地状态');
       
-      // 立即更新本地状态 - 从数据库返回的最新数据
-      if (updatedUserInfo && updatedUserInfo.custom_models) {
+      // 关键修复：确保本地状态与数据库状态完全同步
+      if (updatedUserInfo) {
+        console.log('📊 从数据库获取的最新模型数据:', updatedUserInfo.custom_models);
+        
         const updatedModels: ModelConfig[] = updatedUserInfo.custom_models.map((model: any) => ({
           id: model.id,
           name: model.name,
@@ -119,22 +127,40 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
           isDefault: model.isDefault || false,
           createdAt: new Date(model.createdAt)
         }));
+        
+        console.log('🔄 更新本地模型状态:', {
+          before: models.length,
+          after: updatedModels.length,
+          deletedModel: modelToDelete.name
+        });
+        
         setModels(updatedModels);
       } else {
-        // 如果没有返回数据或者 custom_models 为空，清空本地状态
+        console.log('⚠️ 数据库返回空数据，清空本地状态');
         setModels([]);
       }
       
       // 在后台静默刷新用户信息，不影响当前页面
       setTimeout(() => {
+        console.log('🔄 后台刷新用户信息');
         refreshUserInfo();
       }, 100);
       
-      showNotification('success', '模型配置已删除');
+      showNotification('success', `模型 "${modelToDelete.name}" 已删除`);
       console.log('✅ 模型删除完成');
     } catch (error) {
       console.error('Delete model error:', error);
-      showNotification('error', error instanceof Error ? error.message : '删除失败，请稍后重试');
+      
+      // 提供更详细的错误信息
+      let errorMessage = '删除失败，请稍后重试';
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      
+      showNotification('error', errorMessage);
+      
+      // 删除失败时，确保本地状态与实际状态一致
+      console.log('❌ 删除失败，保持本地状态不变');
     } finally {
       setLoading(false);
     }

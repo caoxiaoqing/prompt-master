@@ -200,13 +200,20 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       if (!user || dataRefreshTrigger === 0 || loading) return
       
       try {
-        console.log('🔄 刷新用户信息...')
+        console.log('🔄 刷新用户信息...', { trigger: dataRefreshTrigger })
         // 不设置全局 loading 状态，避免影响当前页面
         const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+        
+        console.log('📊 刷新后的用户信息:', {
+          hasUserInfo: !!refreshedUserInfo,
+          customModelsCount: refreshedUserInfo?.custom_models?.length || 0
+        })
+        
         setUserInfo(refreshedUserInfo)
         console.log('✅ 用户信息刷新成功')
       } catch (error) {
         console.error('❌ 刷新用户信息失败:', error)
+        // 不要因为刷新失败而影响用户操作
       }
     }
 

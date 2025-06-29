@@ -525,7 +525,7 @@ export const authService = {
         throw new Error('Database connection unavailable. Model configuration cannot be deleted at this time.')
       }
 
-      console.log('🗑️ 删除自定义模型配置:', userId, modelId)
+      console.log('🗑️ 开始删除自定义模型配置:', { userId, modelId })
 
       // 1. 获取当前用户的模型列表
       const { data: existingUser, error: fetchError } = await supabase
@@ -541,20 +541,27 @@ export const authService = {
 
       const existingModels = existingUser?.custom_models || []
       
-      console.log('📋 删除前的模型列表:', existingModels.length, '个模型')
+      console.log('📋 删除前的模型列表:', {
+        totalModels: existingModels.length,
+        modelIds: existingModels.map((m: any) => ({ id: m.id, name: m.name }))
+      })
       
       // 检查要删除的模型是否存在
       const targetModel = existingModels.find((model: any) => model.id === modelId)
       if (!targetModel) {
-        throw new Error('要删除的模型不存在')
+        console.error('❌ 要删除的模型不存在:', modelId)
+        throw new Error(`要删除的模型不存在 (ID: ${modelId})`)
       }
       
-      console.log('🎯 找到目标模型:', targetModel.name)
+      console.log('🎯 找到目标模型:', { id: targetModel.id, name: targetModel.name })
       
       // 2. 过滤掉要删除的模型
       const updatedModels = existingModels.filter((model: any) => model.id !== modelId)
       
-      console.log('📋 删除后的模型列表:', updatedModels.length, '个模型')
+      console.log('📋 删除后的模型列表:', {
+        totalModels: updatedModels.length,
+        modelIds: updatedModels.map((m: any) => ({ id: m.id, name: m.name }))
+      })
       
       const updateData = {
         custom_models: updatedModels
@@ -571,7 +578,8 @@ export const authService = {
         console.log('✅ 新的默认模型:', updateData.custom_models[0]?.name)
       }
 
-      console.log('💾 开始更新数据库...')
+      console.log('💾 开始更新数据库...', { updateData })
+      
       const { data, error } = await supabase
         .from('user_info')
         .update(updateData)
@@ -581,14 +589,20 @@ export const authService = {
 
       if (error) {
         console.error('❌ 删除模型配置失败:', error)
-        throw error
+        throw new Error(`数据库更新失败: ${error.message}`)
       }
 
-      console.log('✅ 模型配置删除成功，数据库已更新')
+      console.log('✅ 模型配置删除成功，数据库已更新:', {
+        updatedModelsCount: data.custom_models?.length || 0
+      })
       
       return { userInfo: data }
     } catch (error) {
       console.error('💥 删除模型配置出错:', error)
+      // 提供更详细的错误信息
+      if (error instanceof Error) {
+        throw new Error(`删除模型失败: ${error.message}`)
+      }
       throw error
     }
   },
