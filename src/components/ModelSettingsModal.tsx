@@ -14,7 +14,9 @@ import { mockModels } from '../utils/mockData';
 interface ModelSettingsModalProps {
   temperature: number;
   maxTokens: number;
-  selectedModel: string;
+  topK: number;
+  topP: number;
+  selectedModel: any;
   onClose: () => void;
   onSave: (temperature: number, maxTokens: number) => void;
 }
@@ -22,14 +24,18 @@ interface ModelSettingsModalProps {
 const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
   temperature,
   maxTokens,
+  topK,
+  topP,
   selectedModel,
   onClose,
   onSave
 }) => {
   const [localTemperature, setLocalTemperature] = useState(temperature);
   const [localMaxTokens, setLocalMaxTokens] = useState(maxTokens);
+  const [localTopK, setLocalTopK] = useState(topK);
+  const [localTopP, setLocalTopP] = useState(topP);
 
-  const currentModel = mockModels.find(m => m.id === selectedModel);
+  const currentModel = selectedModel;
 
   const handleSave = () => {
     onSave(localTemperature, localMaxTokens);
@@ -39,6 +45,8 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
   const handleReset = () => {
     setLocalTemperature(0.7);
     setLocalMaxTokens(1000);
+    setLocalTopK(50);
+    setLocalTopP(1.0);
   };
 
   const getTemperatureDescription = (temp: number) => {
@@ -80,9 +88,11 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
                 模型参数设置
               </h2>
-              <p className="text-sm text-gray-500">
-                {currentModel?.name} ({currentModel?.provider})
-              </p>
+              {currentModel && (
+                <p className="text-sm text-gray-500">
+                  {currentModel.name}
+                </p>
+              )}
             </div>
           </div>
           <button
@@ -95,6 +105,104 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
 
         {/* Content */}
         <div className="p-6 space-y-6">
+          {!currentModel && (
+            <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+              <p className="text-yellow-700 dark:text-yellow-300 text-sm">
+                请先在账户设置中配置自定义模型
+              </p>
+            </div>
+          )}
+
+          {/* Top-K Setting */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Hash size={16} className="text-purple-600 dark:text-purple-400" />
+                <label className="font-medium text-gray-900 dark:text-white">
+                  Top-K
+                </label>
+              </div>
+              <span className="text-sm font-mono px-2 py-1 rounded text-purple-600 dark:text-purple-400 bg-gray-100 dark:bg-gray-700">
+                {localTopK}
+              </span>
+            </div>
+            
+            <div className="space-y-2">
+              <input
+                type="range"
+                min="1"
+                max="100"
+                step="1"
+                value={localTopK}
+                onChange={(e) => setLocalTopK(parseInt(e.target.value))}
+                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                disabled={!currentModel}
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>1</span>
+                <span>50</span>
+                <span>100</span>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <Info size={14} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-gray-900 dark:text-white">
+                  限制候选词汇数量
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  控制模型在生成时考虑的候选词汇数量。较低的值产生更集中的输出。
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Top-P Setting */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Hash size={16} className="text-green-600 dark:text-green-400" />
+                <label className="font-medium text-gray-900 dark:text-white">
+                  Top-P
+                </label>
+              </div>
+              <span className="text-sm font-mono px-2 py-1 rounded text-green-600 dark:text-green-400 bg-gray-100 dark:bg-gray-700">
+                {localTopP.toFixed(1)}
+              </span>
+            </div>
+            
+            <div className="space-y-2">
+              <input
+                type="range"
+                min="0"
+                max="1"
+                step="0.1"
+                value={localTopP}
+                onChange={(e) => setLocalTopP(parseFloat(e.target.value))}
+                className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                disabled={!currentModel}
+              />
+              <div className="flex justify-between text-xs text-gray-500">
+                <span>0.0</span>
+                <span>0.5</span>
+                <span>1.0</span>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-2 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
+              <Info size={14} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+              <div className="text-sm">
+                <p className="font-medium text-gray-900 dark:text-white">
+                  核采样概率阈值
+                </p>
+                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                  控制模型选择词汇的概率分布。较低的值产生更确定的输出。
+                </p>
+              </div>
+            </div>
+          </div>
+
           {/* Temperature Setting */}
           <div className="space-y-3">
             <div className="flex items-center justify-between">
@@ -121,7 +229,7 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
               />
               <div className="flex justify-between text-xs text-gray-500">
                 <span>0.0 (确定)</span>
-                <span>1.0 (平衡)</span>
+                <span>0.8 (平衡)</span>
                 <span>2.0 (创造)</span>
               </div>
             </div>
@@ -162,11 +270,12 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                 value={localMaxTokens}
                 onChange={(e) => setLocalMaxTokens(parseInt(e.target.value))}
                 className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider"
+                disabled={!currentModel}
               />
               <div className="flex justify-between text-xs text-gray-500">
                 <span>100</span>
-                <span>{Math.floor((currentModel?.maxTokens || 4000) / 2).toLocaleString()}</span>
-                <span>{(currentModel?.maxTokens || 4000).toLocaleString()}</span>
+                <span>2000</span>
+                <span>4000</span>
               </div>
             </div>
             
@@ -184,25 +293,27 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
           </div>
 
           {/* Model Info */}
-          <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+          {currentModel && (
+            <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <h4 className="font-medium text-blue-900 dark:text-blue-100 mb-2">
               模型信息
             </h4>
             <div className="space-y-1 text-sm text-blue-800 dark:text-blue-200">
               <div className="flex justify-between">
-                <span>提供商:</span>
-                <span className="font-mono">{currentModel?.provider}</span>
+                <span>模型名称:</span>
+                <span className="font-mono">{currentModel.name}</span>
               </div>
               <div className="flex justify-between">
-                <span>最大上下文:</span>
-                <span className="font-mono">{currentModel?.maxTokens?.toLocaleString()} tokens</span>
+                <span>Base URL:</span>
+                <span className="font-mono text-xs">{currentModel.baseUrl}</span>
               </div>
               <div className="flex justify-between">
-                <span>支持功能:</span>
-                <span className="font-mono">{currentModel?.supportedFeatures.join(', ')}</span>
+                <span>创建时间:</span>
+                <span className="font-mono">{new Date(currentModel.createdAt).toLocaleDateString('zh-CN')}</span>
               </div>
             </div>
-          </div>
+            </div>
+          )}
         </div>
 
         {/* Footer */}
@@ -224,7 +335,8 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
             </button>
             <button
               onClick={handleSave}
-              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              disabled={!currentModel}
+              className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               <Save size={16} />
               <span>保存设置</span>
