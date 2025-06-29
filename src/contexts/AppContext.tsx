@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { PromptVersion, TestResult, ABTest, Comment, PromptTask, Folder, ProjectData } from '../types';
 import { useAuth } from './AuthContext';
-import { DatabaseService } from '../lib/database';
+import { TaskService } from '../lib/taskService';
 
 interface AppState {
   versions: PromptVersion[];
@@ -322,7 +322,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       console.log('🔄 开始同步数据到数据库...');
       dispatch({ type: 'SET_SYNCING', payload: true });
 
-      await DatabaseService.syncLocalDataToDatabase(user.id, state.folders, state.tasks);
+      // 新的任务持久化系统使用实时同步，不需要批量同步
+      console.log('ℹ️ 新的任务持久化系统使用实时同步');
       
       console.log('✅ 数据同步到数据库完成');
     } catch (error) {
@@ -341,7 +342,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         console.log('📥 开始从数据库加载用户数据...');
         dispatch({ type: 'SET_SYNCING', payload: true });
 
-        const { folders, tasks } = await DatabaseService.loadUserDataFromDatabase(user.id);
+        // 新的任务持久化系统暂时使用本地存储
+        // TODO: 实现从数据库加载任务数据的功能
+        const folders = state.folders.length > 0 ? state.folders : [
+          {
+            id: 'default',
+            name: '默认文件夹',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            color: '#3B82F6'
+          }
+        ];
+        const tasks: PromptTask[] = [];
         
         // 确保至少有默认文件夹
         if (folders.length === 0) {
