@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Database,
   Plus, 
   Edit3, 
   Trash2, 
@@ -56,7 +55,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'success' | 'error'>('idle');
   const [showApiKey, setShowApiKey] = useState<{ [key: string]: boolean }>({});
 
   // Load models from userInfo on component mount
@@ -64,21 +62,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     if (userInfo) {
       // Parse existing model configurations from userInfo
       // This is a simplified version - you might store this differently
-      console.log('📥 Loading models from userInfo:', userInfo.custom_models);
-      
-      const savedModels: ModelConfig[] = userInfo.custom_models ? 
-        userInfo.custom_models.map((model: any) => ({
-          id: model.id || Date.now().toString(),
-          name: model.name || 'Unknown Model',
-          baseUrl: model.baseUrl || model.base_url || '',
-          apiKey: model.apiKey || model.api_key || '',
-          parameters: model.parameters || { topK: 50, topP: 1.0, temperature: 0.8 },
-          isDefault: model.isDefault || false,
-          createdAt: model.createdAt ? new Date(model.createdAt) : new Date()
-        })) : [];
-      
+      const savedModels: ModelConfig[] = [];
       setModels(savedModels);
-      console.log('✅ Models loaded:', savedModels.length);
     }
   }, [userInfo]);
 
@@ -92,38 +77,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     setShowAddModal(true);
   };
 
-  // 同步模型数据到数据库
-  const syncModelsToDatabase = async (updatedModels: ModelConfig[]) => {
-    if (!user) return;
-    
-    try {
-      setSyncStatus('syncing');
-      console.log('🔄 Syncing models to database:', updatedModels);
-      
-      // 准备要保存的模型数据
-      const modelsForStorage = updatedModels.map(model => ({
-        id: model.id,
-        name: model.name,
-        baseUrl: model.baseUrl,
-        apiKey: model.apiKey,
-        parameters: model.parameters,
-        isDefault: model.isDefault,
-        createdAt: model.createdAt.toISOString()
-      }));
-      
-      await updateUserInfo({ custom_models: modelsForStorage });
-      setSyncStatus('success');
-      console.log('✅ Models synced successfully');
-      
-      setTimeout(() => setSyncStatus('idle'), 2000);
-    } catch (error) {
-      console.error('❌ Failed to sync models:', error);
-      setSyncStatus('error');
-      showNotification('error', '模型同步失败，请稍后重试');
-      setTimeout(() => setSyncStatus('idle'), 3000);
-    }
-  };
-
   const handleDeleteModel = async (modelId: string) => {
     if (!confirm('确定要删除这个模型配置吗？')) return;
 
@@ -132,8 +85,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       const updatedModels = models.filter(m => m.id !== modelId);
       setModels(updatedModels);
       
-      // 同步到数据库
-      await syncModelsToDatabase(updatedModels);
+      // Update userInfo with new models list
+      // You would implement the actual storage logic here
       
       showNotification('success', '模型配置已删除');
     } catch (error) {
@@ -153,8 +106,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       }));
       setModels(updatedModels);
       
-      // 同步到数据库
-      await syncModelsToDatabase(updatedModels);
+      // Update userInfo with default model
+      await updateUserInfo({
+        model_id: parseInt(modelId),
+        model_name: models.find(m => m.id === modelId)?.name
+      });
       
       showNotification('success', '默认模型已更新');
     } catch (error) {
@@ -183,25 +139,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <SettingsIcon size={20} className="text-blue-600 dark:text-blue-400" />
-          <div className="flex items-center space-x-2">
-            <Database size={16} className={`${
-              syncStatus === 'syncing' ? 'text-blue-600 dark:text-blue-400 animate-pulse' :
-              syncStatus === 'success' ? 'text-green-600 dark:text-green-400' :
-              syncStatus === 'error' ? 'text-red-600 dark:text-red-400' :
-              'text-gray-400'
-            }`} />
-            <span className={`text-xs ${
-              syncStatus === 'syncing' ? 'text-blue-600 dark:text-blue-400' :
-              syncStatus === 'success' ? 'text-green-600 dark:text-green-400' :
-              syncStatus === 'error' ? 'text-red-600 dark:text-red-400' :
-              'text-gray-500'
-            }`}>
-              {syncStatus === 'syncing' ? '同步中...' :
-               syncStatus === 'success' ? '已同步' :
-               syncStatus === 'error' ? '同步失败' :
-               '本地存储'}
-            </span>
-          </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white">AI 模型配置</h2>
             <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -359,14 +296,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
           <ModelConfigModal
             model={editingModel}
             onSave={(modelData) => {
-              let updatedModels: ModelConfig[];
-              
               if (editingModel) {
                 // Update existing model
-                updatedModels = models.map(m => 
+                setModels(prev => prev.map(m => 
                   m.id === editingModel.id ? { ...modelData, id: editingModel.id } : m
-                );
-                setModels(updatedModels);
+                ));
                 showNotification('success', '模型配置已更新');
               } else {
                 // Add new model
@@ -376,13 +310,9 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                   createdAt: new Date(),
                   isDefault: models.length === 0
                 };
-                updatedModels = [...models, newModel];
-                setModels(updatedModels);
+                setModels(prev => [...prev, newModel]);
                 showNotification('success', '模型配置已添加');
               }
-              
-              // 同步到数据库
-              syncModelsToDatabase(updatedModels);
               setShowAddModal(false);
             }}
             onClose={() => setShowAddModal(false)}

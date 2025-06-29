@@ -89,10 +89,7 @@ export interface UserInfo {
   // 新增字段用于存储用户偏好设置
   language?: string
   timezone?: string
-  // 新增字段用于存储自定义模型配置
   custom_models?: any[]
-  // 新增字段用于存储默认模型设置
-  default_model_id?: string
 }
 
 // 动物头像emoji数组

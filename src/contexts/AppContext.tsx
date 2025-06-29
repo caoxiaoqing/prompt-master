@@ -1,7 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { PromptVersion, TestResult, ABTest, Comment, PromptTask, Folder, ProjectData } from '../types';
 import { useAuth } from './AuthContext';
-import { isSupabaseAvailable } from '../lib/supabase';
 import { DatabaseService } from '../lib/database';
 
 interface AppState {
@@ -309,12 +308,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // 🔄 数据同步到数据库的函数
   const syncToDatabase = async () => {
     if (!user || state.isSyncing) return;
-    
-    // 检查 Supabase 连接状态
-    if (!isSupabaseAvailable()) {
-      console.warn('⚠️ Skipping sync - Supabase unavailable');
-      return;
-    }
 
     try {
       console.log('🔄 开始同步数据到数据库...');
@@ -324,7 +317,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       
       console.log('✅ 数据同步到数据库完成');
     } catch (error) {
-      console.error('❌ 数据同步失败:', error);
+      console.error('❌ 数据同步到数据库失败:', error);
     } finally {
       dispatch({ type: 'SET_SYNCING', payload: false });
     }
