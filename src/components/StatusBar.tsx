@@ -10,9 +10,11 @@ import {
   Hash
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 
 const StatusBar: React.FC = () => {
   const { state } = useApp();
+  const { userInfo } = useAuth();
   
   // 计算当前任务的token数（简单估算：4字符=1token）
   const currentPromptTokens = state.currentTask 
@@ -25,6 +27,91 @@ const StatusBar: React.FC = () => {
   // 获取当前任务的token使用情况
   const currentTokenUsage = state.currentTask?.tokenUsage || latestTestResult?.tokenUsage;
 
+  // 检查用户是否配置了自定义模型
+  const hasCustomModels = userInfo?.custom_models && userInfo.custom_models.length > 0;
+  
+  // 如果用户没有配置任何自定义模型，不显示模型相关信息
+  if (!hasCustomModels) {
+    const basicStatusItems = [
+      {
+        icon: Hash,
+        label: 'Prompt Tokens',
+        value: currentPromptTokens.toString(),
+        color: 'text-orange-600 dark:text-orange-400'
+      },
+      {
+        icon: Database,
+        label: 'Total Tokens',
+        value: currentTokenUsage ? currentTokenUsage.total.toString() : '0',
+        color: 'text-pink-600 dark:text-pink-400'
+      }
+    ];
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2"
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-6 overflow-x-auto">
+            {basicStatusItems.map((item, index) => (
+              <motion.div
+                key={item.label}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className="flex items-center space-x-2 min-w-0 flex-shrink-0"
+              >
+                <item.icon size={14} className={`${item.color} flex-shrink-0`} />
+                <div className="flex items-center space-x-1 text-xs">
+                  <span className="text-gray-500 dark:text-gray-400 font-medium">
+                    {item.label}:
+                  </span>
+                  <span className={`font-mono font-semibold ${item.color}`}>
+                    {item.value}
+                  </span>
+                </div>
+              </motion.div>
+            ))}
+            
+            {/* 提示用户配置模型 */}
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+              className="flex items-center space-x-2 min-w-0 flex-shrink-0"
+            >
+              <Cpu size={14} className="text-gray-400 flex-shrink-0" />
+              <div className="flex items-center space-x-1 text-xs">
+                <span className="text-gray-400 font-medium">
+                  模型: 未配置
+                </span>
+              </div>
+            </motion.div>
+          </div>
+          
+          {/* 右侧状态指示器 */}
+          <div className="flex items-center space-x-3 flex-shrink-0">
+            {/* 连接状态 */}
+            <div className="flex items-center space-x-1">
+              <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+              <span className="text-xs text-gray-500 dark:text-gray-400">在线</span>
+            </div>
+            
+            {/* 当前时间 */}
+            <div className="text-xs text-gray-500 dark:text-gray-400 font-mono">
+              {new Date().toLocaleTimeString('zh-CN', { 
+                hour12: false,
+                hour: '2-digit',
+                minute: '2-digit'
+              })}
+            </div>
+          </div>
+        </div>
+      </motion.div>
+    );
+  }
   const statusItems = [
     {
       icon: Cpu,
