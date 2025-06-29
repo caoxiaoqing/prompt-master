@@ -15,8 +15,7 @@ export class OpenAIService {
       
       try {
         // 动态导入 OpenAI
-        const OpenAIModule = await import('openai');
-        const OpenAI = OpenAIModule.default;
+        const { OpenAI } = await import('openai');
         
         const client = new OpenAI({
           baseURL: baseUrl,
