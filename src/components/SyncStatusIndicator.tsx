@@ -193,20 +193,26 @@ const SyncStatusIndicator: React.FC = () => {
   const queueStatus = syncService.getQueueStatus()
 
   return (
-    <div className="relative">
+    <div className="relative w-full">
       {/* 状态指示器 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
-        className={`flex items-center space-x-2 px-3 py-1.5 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${getStatusColor()}`}
+        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${getStatusColor()} border border-gray-200 dark:border-gray-600`}
         title={`同步状态: ${getStatusText()}`}
       >
-        {getStatusIcon()}
-        <span className="text-sm font-medium">{getStatusText()}</span>
-        {syncState.queueLength > 0 && (
-          <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs">
-            {syncState.queueLength}
-          </span>
-        )}
+        <div className="flex items-center space-x-2">
+          {getStatusIcon()}
+          <span className="text-sm font-medium">{getStatusText()}</span>
+          {syncState.queueLength > 0 && (
+            <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs">
+              {syncState.queueLength}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center space-x-2 text-xs text-gray-500">
+          <Clock size={12} />
+          <span>{formatLastSyncTime(syncState.lastSyncTime)}</span>
+        </div>
       </button>
 
       {/* 详细信息面板 */}
@@ -216,7 +222,7 @@ const SyncStatusIndicator: React.FC = () => {
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50"
+            className="absolute right-0 bottom-full mb-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50"
           >
             {/* 头部 */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
