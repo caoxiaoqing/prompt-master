@@ -79,10 +79,6 @@ export interface UserInfo {
   email: string
   user_name: string
   user_profile_pic?: string
-  model_id?: number
-  model_name?: string
-  base_url?: string
-  api_key?: string
   subscription_status?: boolean
   subscription_type?: any
   created_at?: string
@@ -90,7 +86,6 @@ export interface UserInfo {
   language?: string
   timezone?: string
   custom_models?: any[]
-  default_model_id?: string
 }
 
 // 动物头像emoji数组
@@ -411,15 +406,8 @@ export const authService = {
       
       // 4. 更新用户的自定义模型列表
       const updatedModels = [...existingModels, newModel]
-      const updateData: any = {
+      const updateData = {
         custom_models: updatedModels
-      }
-
-      // 如果是第一个模型，同时设置为默认模型
-      if (existingModels.length === 0) {
-        updateData.default_model_id = modelId
-        updateData.model_id = parseInt(modelId)
-        updateData.model_name = modelConfig.name
       }
 
       const { data, error } = await supabase
@@ -552,30 +540,18 @@ export const authService = {
       // 2. 过滤掉要删除的模型
       const updatedModels = existingModels.filter((model: any) => model.id !== modelId)
       
-      const updateData: any = {
+      const updateData = {
         custom_models: updatedModels
       }
 
       // 3. 如果删除的是默认模型，需要重新设置默认模型
-      if (existingUser?.default_model_id === modelId) {
-        if (updatedModels.length > 0) {
-          // 设置第一个模型为默认
-          const newDefaultModel = updatedModels[0]
-          updateData.default_model_id = newDefaultModel.id
-          updateData.model_id = parseInt(newDefaultModel.id)
-          updateData.model_name = newDefaultModel.name
-          
-          // 更新模型列表中的默认标记
-          updateData.custom_models = updatedModels.map((model: any, index: number) => ({
-            ...model,
-            isDefault: index === 0
-          }))
-        } else {
-          // 没有其他模型了，清除默认模型设置
-          updateData.default_model_id = null
-          updateData.model_id = null
-          updateData.model_name = null
-        }
+      const deletedModel = existingModels.find((model: any) => model.id === modelId)
+      if (deletedModel?.isDefault && updatedModels.length > 0) {
+        // 设置第一个模型为默认
+        updateData.custom_models = updatedModels.map((model: any, index: number) => ({
+          ...model,
+          isDefault: index === 0
+        }))
       }
 
       const { data, error } = await supabase
@@ -639,10 +615,7 @@ export const authService = {
       const { data, error } = await supabase
         .from('user_info')
         .update({
-          custom_models: updatedModels,
-          default_model_id: modelId,
-          model_id: parseInt(modelId),
-          model_name: targetModel.name
+          custom_models: updatedModels
         })
         .eq('uuid', userId)
         .select()
