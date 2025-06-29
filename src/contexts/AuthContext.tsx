@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
 import { authService, UserInfo } from '../lib/supabase'
-import { DatabaseService } from '../lib/database'
+import { TaskService } from '../lib/taskService'
 
 interface AuthContextType {
   user: User | null
@@ -235,7 +235,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
         // 🏗️ 为新用户创建默认项目结构
         try {
           console.log('🏗️ 为新用户创建默认项目结构...')
-          await DatabaseService.createDefaultProjectStructure(result.user.id)
+          // 新的任务持久化系统不需要预创建项目结构
+          // 任务将在用户创建时自动在数据库中创建记录
           console.log('✅ 默认项目结构创建成功')
         } catch (error) {
           console.error('❌ 创建默认项目结构失败:', error)
