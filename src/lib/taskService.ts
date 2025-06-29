@@ -26,6 +26,18 @@ export interface ModelParams {
   max_context_turns: number
 }
 
+// 超时包装函数
+const withTimeout = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  operation: string
+): Promise<T> => {
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => reject(new Error(`${operation} timeout after ${timeoutMs}ms`)), timeoutMs)
+  })
+  return Promise.race([promise, timeoutPromise])
+}
+
 // 任务信息的数据结构
 export interface TaskInfo {
   created_at?: string
@@ -236,11 +248,6 @@ export class TaskService {
       }
       
       throw error
-    } catch (timeoutError) {
-      // 专门处理超时错误
-      console.error('⏰ 任务创建操作超时:', timeoutError)
-      throw new Error('任务创建超时，请检查网络连接后重试')
-    }
   }
 
   /**
