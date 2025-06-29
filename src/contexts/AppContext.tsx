@@ -10,6 +10,7 @@ interface AppState {
   abTests: ABTest[];
   comments: Comment[];
   selectedModel: string;
+  selectedCustomModel: any | null; // 当前选中的自定义模型配置
   theme: 'light' | 'dark';
   sidebarOpen: boolean;
   activeTab: 'editor' | 'versions' | 'analytics' | 'tests';
@@ -34,6 +35,7 @@ type AppAction =
   | { type: 'DELETE_VERSION'; payload: string }
   | { type: 'ADD_TEST_RESULT'; payload: TestResult }
   | { type: 'SET_SELECTED_MODEL'; payload: string }
+  | { type: 'SET_SELECTED_CUSTOM_MODEL'; payload: any | null }
   | { type: 'TOGGLE_THEME' }
   | { type: 'TOGGLE_SIDEBAR' }
   | { type: 'SET_ACTIVE_TAB'; payload: AppState['activeTab'] }
@@ -64,6 +66,7 @@ const initialState: AppState = {
   abTests: [],
   comments: [],
   selectedModel: 'gpt-4',
+  selectedCustomModel: null,
   theme: 'dark',
   sidebarOpen: true,
   activeTab: 'editor',
@@ -158,6 +161,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, testResults: [...state.testResults, action.payload] };
     case 'SET_SELECTED_MODEL':
       return { ...state, selectedModel: action.payload };
+    case 'SET_SELECTED_CUSTOM_MODEL':
+      return { 
+        ...state, 
+        selectedCustomModel: action.payload,
+        selectedModel: action.payload ? action.payload.name : 'gpt-4'
+      };
     case 'TOGGLE_THEME':
       return { ...state, theme: state.theme === 'light' ? 'dark' : 'light' };
     case 'TOGGLE_SIDEBAR':

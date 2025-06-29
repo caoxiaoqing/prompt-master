@@ -14,6 +14,7 @@ import {
   ArrowDown
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
 import { generateMockResponse, mockModels } from '../utils/mockData';
 import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
@@ -36,6 +37,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onChatHistoryChange
 }) => {
   const { state, dispatch } = useApp();
+  const { userInfo } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -46,6 +48,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
+  // 获取用户的自定义模型列表
+  const customModels = userInfo?.custom_models || [];
+  const hasCustomModels = customModels.length > 0;
+  
+  // 获取默认模型
+  const defaultModel = customModels.find((model: any) => model.isDefault);
+
   // 当任务切换时，加载对应的聊天历史
   useEffect(() => {
     if (state.currentTask?.currentChatHistory) {
@@ -54,6 +63,23 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setMessages([]);
     }
   }, [state.currentTask?.id]); // 移除 dispatch 依赖，避免无限循环
+
+  // 当用户有自定义模型时，自动设置默认模型
+  useEffect(() => {
+    if (hasCustomModels && defaultModel && !state.selectedCustomModel) {
+      console.log('🎯 设置默认自定义模型:', defaultModel.name);
+      dispatch({ 
+        type: 'SET_SELECTED_CUSTOM_MODEL', 
+        payload: defaultModel 
+      });
+    } else if (!hasCustomModels && state.selectedCustomModel) {
+      // 如果用户删除了所有自定义模型，清除选择
+      dispatch({ 
+        type: 'SET_SELECTED_CUSTOM_MODEL', 
+        payload: null 
+      });
+    }
+  }, [hasCustomModels, defaultModel, state.selectedCustomModel, dispatch]);
 
   // 当聊天历史变化时，自动保存到当前任务并通知父组件
   useEffect(() => {
@@ -360,20 +386,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             {/* 模型选择和设置 - 移动到这里 */}
             <div className="flex items-center space-x-2">
               <select
-                value={state.selectedModel}
-                onChange={(e) => dispatch({ type: 'SET_SELECTED_MODEL', payload: e.target.value })}
+                value={state.selectedCustomModel ? state.selectedCustomModel.id : ''}
+                onChange={(e) => {
+                  const selectedModelId = e.target.value;
+                  const selectedModel = customModels.find((model: any) => model.id === selectedModelId);
+                  if (selectedModel) {
+                    dispatch({ 
+                      type: 'SET_SELECTED_CUSTOM_MODEL', 
+                      payload: selectedModel 
+                    });
+                  }
+                }}
                 className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                disabled={!hasCustomModels}
               >
-                {mockModels.map((model) => (
+                {!hasCustomModels && (
+                  <option value="">未配置模型</option>
+                )}
+                {customModels.map((model: any) => (
                   <option key={model.id} value={model.id}>
-                    {model.name} ({model.provider})
+                    {model.name}
                   </option>
                 ))}
               </select>
               <button
                 onClick={() => setShowModelSettings(true)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600"
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                 title="模型参数设置"
+                disabled={!state.selectedCustomModel}
               >
                 <Settings size={14} />
               </button>
@@ -425,7 +465,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                   </p>
                 ) : (
                   <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
-                    💡 可在左侧设置 System Prompt 来定制AI的回答风格
+                    {hasCustomModels 
+                      ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格'
+                      : '⚠️ 请先在账户设置中配置自定义模型'
+                    }
                   </p>
                 )}
               </div>
@@ -476,8 +519,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="输入用户消息..." // 修复：简化占位符文本，移除对 system prompt 的依赖
-              disabled={isLoading}
+              placeholder={hasCustomModels ? "输入用户消息..." : "请先配置自定义模型"}
+              disabled={isLoading || !hasCustomModels}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               rows={Math.min(Math.max(userInput.split('\n').length, 1), 4)}
             />
@@ -488,7 +531,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
           <button
             onClick={handleSendMessage}
-            disabled={!userInput.trim() || isLoading} // 修复：移除对 system prompt 的检查
+            disabled={!userInput.trim() || isLoading || !hasCustomModels}
             className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 mt-0"
           >
             {isLoading ? (
@@ -504,9 +547,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <AnimatePresence>
         {showModelSettings && (
           <ModelSettingsModal
-            temperature={temperature}
-            maxTokens={maxTokens}
-            selectedModel={state.selectedModel}
+            temperature={state.selectedCustomModel?.temperature || temperature}
+            maxTokens={state.selectedCustomModel?.maxTokens || maxTokens}
+            topK={state.selectedCustomModel?.topK || 50}
+            topP={state.selectedCustomModel?.topP || 1.0}
+            selectedModel={state.selectedCustomModel}
             onClose={() => setShowModelSettings(false)}
             onSave={handleModelSettingsChange}
           />
