@@ -28,7 +28,6 @@ export interface ModelParams {
 
 // 任务信息的数据结构
 export interface TaskInfo {
-  id?: number
   created_at?: string
   uuid: string
   task_id: number | null
@@ -67,6 +66,7 @@ export class TaskService {
       })
       
       const taskData: Omit<TaskInfo, 'id' | 'created_at'> = {
+      const taskData: Omit<TaskInfo, 'created_at'> = {
         uuid: userId,
         task_id: taskId,
         task_folder_name: folderName,
@@ -81,7 +81,7 @@ export class TaskService {
       // 检查任务是否已存在（使用 task_id 检查，因为它是唯一的）
       const { data: existingTasks, error: checkError } = await supabase
         .from('task_info')
-        .select('id, task_id')
+        .select('task_id, task_name')
         .eq('task_id', taskId)
         .limit(1)
 
@@ -91,7 +91,7 @@ export class TaskService {
       }
 
       if (existingTasks && existingTasks.length > 0) {
-        console.log('ℹ️ 任务已存在，跳过创建:', existingTasks[0])
+        console.log('ℹ️ 任务已存在，跳过创建:', { taskId, taskName: existingTasks[0].task_name })
         // 返回现有任务的完整信息
         const { data: fullTask, error: fetchError } = await supabase
           .from('task_info')
@@ -126,7 +126,7 @@ export class TaskService {
         throw error
       }
 
-      console.log('✅ 任务记录创建成功:', data.id)
+      console.log('✅ 任务记录创建成功:', { taskId: data.task_id, taskName: data.task_name })
       return data
     } catch (error) {
       console.error('💥 创建任务记录出错:', error)
