@@ -429,19 +429,7 @@ const FolderSidebar: React.FC = () => {
           </div>
           
           {/* 右侧数据状态 */}
-          <div className="flex items-center space-x-2">
-            {state.isDataLoaded ? (
-              <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
-                <Database size={12} />
-                <span>已同步</span>
-              </div>
-            ) : (
-              <div className="flex items-center space-x-1 text-gray-500">
-                <Database size={12} />
-                <span>本地</span>
-              </div>
-            )}
-          </div>
+          <div className="flex items-center space-x-2"></div>
         </div>
       </div>
 
