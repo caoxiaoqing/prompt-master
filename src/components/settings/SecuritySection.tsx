@@ -200,6 +200,9 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
         } else {
           showNotification('error', `密码验证失败: ${verifyError.message}`);
         }
+        
+        // 关键修复：确保在验证失败时也重置加载状态
+        setLoading(false);
         return;
       }
 
@@ -222,6 +225,9 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
         } else {
           showNotification('error', `密码更新失败: ${error.message}`);
         }
+        
+        // 关键修复：确保在更新失败时也重置加载状态
+        setLoading(false);
         return;
       }
 
@@ -230,6 +236,9 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
       
       console.log('✅ 密码修改成功');
       showNotification('success', '密码修改成功');
+      
+      // 关键修复：成功时也要重置加载状态
+      setLoading(false);
     } catch (error: any) {
       console.error('Password change error:', error);
       
@@ -246,9 +255,11 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
       }
       
       showNotification('error', errorMessage);
-    } finally {
+      
+      // 关键修复：确保在异常情况下也重置加载状态
       setLoading(false);
     }
+    // 移除 finally 块，因为我们在每个分支中都显式设置了 setLoading(false)
   };
 
   const handleLogoutDevice = async (deviceId: string) => {
