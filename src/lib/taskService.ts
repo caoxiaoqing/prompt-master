@@ -67,6 +67,21 @@ export class TaskService {
       }
       
       // 添加超时机制
+      const createTimeoutPromise = (timeoutMs: number, operation: string) => {
+        return new Promise<never>((_, reject) => {
+          setTimeout(() => {
+            reject(new Error(`${operation} timeout after ${timeoutMs}ms`))
+          }, timeoutMs)
+        })
+      }
+      
+      // 为数据库操作添加超时包装
+      const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, operation: string): Promise<T> => {
+        return Promise.race([
+          promise,
+          createTimeoutPromise(timeoutMs, operation)
+        ])
+      }
       const timeoutPromise = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('Connection test timeout')), timeoutMs)
       })
@@ -148,11 +163,20 @@ export class TaskService {
       })
       
       console.log('💾 开始执行数据库插入操作...')
-      const { data, error } = await supabase
+      
+      // 关键修复：为数据库插入操作添加超时机制
+      const insertOperation = supabase
         .from('task_info')
         .insert([taskData])
         .select()
         .single()
+      
+      console.log('⏰ 执行带超时的数据库插入操作（15秒超时）...')
+      const { data, error } = await withTimeout(
+        insertOperation,
+        15000, // 15秒超时
+        'Task creation'
+      )
       
       console.log('📤 数据库操作完成，检查结果...')
 
@@ -212,6 +236,10 @@ export class TaskService {
       }
       
       throw error
+    } catch (timeoutError) {
+      // 专门处理超时错误
+      console.error('⏰ 任务创建操作超时:', timeoutError)
+      throw new Error('任务创建超时，请检查网络连接后重试')
     }
   }
 
@@ -232,11 +260,18 @@ export class TaskService {
 
       console.log('📝 更新 system prompt:', { taskId, promptLength: systemPrompt.length })
       
-      const { error } = await supabase
+      // 为更新操作添加超时
+      const updateOperation = supabase
         .from('task_info')
         .update({ system_prompt: systemPrompt })
         .eq('uuid', userId)
         .eq('task_id', taskId)
+      
+      const { error } = await withTimeout(
+        updateOperation,
+        10000, // 10秒超时
+        'System prompt update'
+      )
 
       if (error) {
         console.error('❌ 更新 system prompt 失败:', error)
@@ -283,11 +318,18 @@ export class TaskService {
           response_time: msg.responseTime
         }))
 
-      const { error } = await supabase
+      // 为更新操作添加超时
+      const updateOperation = supabase
         .from('task_info')
         .update({ chatinfo: chatInfo })
         .eq('uuid', userId)
         .eq('task_id', taskId)
+      
+      const { error } = await withTimeout(
+        updateOperation,
+        10000, // 10秒超时
+        'Chat history update'
+      )
 
       if (error) {
         console.error('❌ 更新聊天历史失败:', error)
@@ -318,11 +360,18 @@ export class TaskService {
 
       console.log('⚙️ 更新模型参数:', { taskId, modelParams })
       
-      const { error } = await supabase
+      // 为更新操作添加超时
+      const updateOperation = supabase
         .from('task_info')
         .update({ model_params: modelParams })
         .eq('uuid', userId)
         .eq('task_id', taskId)
+      
+      const { error } = await withTimeout(
+        updateOperation,
+        10000, // 10秒超时
+        'Model params update'
+      )
 
       if (error) {
         console.error('❌ 更新模型参数失败:', error)
@@ -349,12 +398,19 @@ export class TaskService {
 
       console.log('📋 获取用户任务:', userId)
       
-      const { data, error } = await supabase
+      // 为查询操作添加超时
+      const queryOperation = supabase
         .from('task_info')
         .select('*')
         .eq('uuid', userId)
         .not('task_id', 'is', null) // 只获取任务记录
         .order('created_at', { ascending: false })
+      
+      const { data, error } = await withTimeout(
+        queryOperation,
+        8000, // 8秒超时
+        'Get user tasks'
+      )
 
       if (error) {
         console.error('❌ 获取用户任务失败:', error)
@@ -382,12 +438,19 @@ export class TaskService {
 
       console.log('🔍 获取任务详情:', { userId, taskId })
       
-      const { data, error } = await supabase
+      // 为查询操作添加超时
+      const queryOperation = supabase
         .from('task_info')
         .select('*')
         .eq('uuid', userId)
         .eq('task_id', taskId)
         .single()
+      
+      const { data, error } = await withTimeout(
+        queryOperation,
+        8000, // 8秒超时
+        'Get task by ID'
+      )
 
       if (error) {
         if (error.code === 'PGRST116') {
@@ -420,11 +483,18 @@ export class TaskService {
 
       console.log('🗑️ 删除任务:', { userId, taskId })
       
-      const { error } = await supabase
+      // 为删除操作添加超时
+      const deleteOperation = supabase
         .from('task_info')
         .delete()
         .eq('uuid', userId)
         .eq('task_id', taskId)
+      
+      const { error } = await withTimeout(
+        deleteOperation,
+        10000, // 10秒超时
+        'Delete task'
+      )
 
       if (error) {
         console.error('❌ 删除任务失败:', error)
@@ -455,11 +525,18 @@ export class TaskService {
 
       console.log('📝 更新任务名称:', { taskId, taskName })
       
-      const { error } = await supabase
+      // 为更新操作添加超时
+      const updateOperation = supabase
         .from('task_info')
         .update({ task_name: taskName })
         .eq('uuid', userId)
         .eq('task_id', taskId)
+      
+      const { error } = await withTimeout(
+        updateOperation,
+        10000, // 10秒超时
+        'Update task name'
+      )
 
       if (error) {
         console.error('❌ 更新任务名称失败:', error)

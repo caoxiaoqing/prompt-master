@@ -130,6 +130,15 @@ const PromptEditor: React.FC = () => {
             }).catch((error) => {
               console.error('❌ 创建任务数据库记录失败:', error);
               // 不阻断用户操作，只记录错误
+              
+              // 如果是超时错误，显示用户友好的提示
+              if (error.message && error.message.includes('超时')) {
+                console.warn('⏰ 任务创建超时，但不影响本地使用:', error.message);
+                // 这里可以添加用户提示，比如显示一个 toast 通知
+                // showNotification('warning', '网络较慢，任务已在本地创建，数据库同步将在后台继续尝试');
+              } else {
+                console.warn('⚠️ 任务创建失败，但不影响用户使用:', error.message);
+              }
             });
           }
         }
