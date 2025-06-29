@@ -20,7 +20,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskService } from '../lib/taskService';
 import { Folder as FolderType, PromptTask, ProjectData } from '../types';
-import { useSyncManager } from '../hooks/useSyncManager';
+import { syncService, SyncOperation } from '../lib/syncService';
 
 const FolderSidebar: React.FC = () => {
   const { state, dispatch, syncToDatabase } = useApp();
@@ -33,9 +33,6 @@ const FolderSidebar: React.FC = () => {
   const [draggedTask, setDraggedTask] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
-  // 使用同步管理器
-  const { syncTaskCreate, syncTaskUpdate, syncTaskDelete } = useSyncManager();
-
   const filteredTasks = state.tasks.filter(task =>
     task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     task.content.toLowerCase().includes(searchTerm.toLowerCase())
@@ -97,8 +94,29 @@ const FolderSidebar: React.FC = () => {
     dispatch({ type: 'SET_CURRENT_TASK', payload: newTask });
     setShowCreateTask(null);
 
-    // 同步任务创建到数据库
-    syncTaskCreate(newTask);
+    // 同步任务创建到数据库 - 使用 syncService 直接添加到同步队列
+    if (user) {
+      syncService.addToSyncQueue({
+        operation: SyncOperation.CREATE,
+        type: 'task',
+        data: {
+          userId: user.id,
+          taskId: parseInt(newTask.id),
+          taskName: newTask.name,
+          folderName: state.folders.find(f => f.id === newTask.folderId)?.name || '默认文件夹',
+          modelParams: {
+            model_id: '',
+            temperature: newTask.temperature,
+            top_k: 50,
+            top_p: 1.0,
+            max_tokens: newTask.maxTokens,
+            max_context_turns: 10
+          }
+        },
+        priority: 1,
+        maxRetries: 3
+      });
+    }
 
     console.log('✅ 新任务已创建，数据库记录将在 PromptEditor 中处理', {
       taskId: newTask.id,
@@ -137,8 +155,19 @@ const FolderSidebar: React.FC = () => {
       
       dispatch({ type: 'DELETE_TASK', payload: taskId });
 
-      // 同步任务删除到数据库
-      syncTaskDelete(taskId);
+      // 同步任务删除到数据库 - 使用 syncService 直接添加到同步队列
+      if (user) {
+        syncService.addToSyncQueue({
+          operation: SyncOperation.DELETE,
+          type: 'task',
+          data: {
+            userId: user.id,
+            taskId: parseInt(taskId)
+          },
+          priority: 1,
+          maxRetries: 3
+        });
+      }
 
       // 如果任务已在数据库中创建，则删除数据库记录
       if (user && task && task.createdInDB) {
@@ -186,8 +215,20 @@ const FolderSidebar: React.FC = () => {
       const updatedTask = { ...task, name: newName, updatedAt: new Date() };
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
 
-      // 同步任务更新到数据库
-      syncTaskUpdate(updatedTask);
+      // 同步任务更新到数据库 - 使用 syncService 直接添加到同步队列
+      if (user) {
+        syncService.addToSyncQueue({
+          operation: SyncOperation.UPDATE,
+          type: 'task',
+          data: {
+            userId: user.id,
+            taskId: parseInt(task.id),
+            taskName: newName
+          },
+          priority: 2,
+          maxRetries: 3
+        });
+      }
 
       // 如果任务已在数据库中创建，则更新数据库记录
       if (user && task.createdInDB) {

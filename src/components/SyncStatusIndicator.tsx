@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Wifi,
@@ -9,24 +9,116 @@ import {
   Clock,
   Database,
   Activity,
-  Settings,
   X
 } from 'lucide-react'
-import { useSyncManager } from '../hooks/useSyncManager'
-import { SyncStatus } from '../lib/syncService'
+import { syncService, SyncStatus, SyncEvent } from '../lib/syncService'
+import { useAuth } from '../contexts/AuthContext'
 
 const SyncStatusIndicator: React.FC = () => {
-  const {
-    syncState,
-    forceFullSync,
-    pullFromRemote,
-    pushToRemote,
-    getSyncStats,
-    getQueueStatus
-  } = useSyncManager()
-  
+  const { user } = useAuth()
+  const [syncState, setSyncState] = useState({
+    status: SyncStatus.IDLE,
+    isOnline: navigator.onLine,
+    queueLength: 0,
+    lastSyncTime: 0,
+    error: null as string | null,
+    conflictCount: 0
+  })
   const [showDetails, setShowDetails] = useState(false)
   const [isManualSyncing, setIsManualSyncing] = useState(false)
+
+  // 监听网络状态
+  useEffect(() => {
+    const handleOnline = () => setSyncState(prev => ({ ...prev, isOnline: true }))
+    const handleOffline = () => setSyncState(prev => ({ ...prev, isOnline: false }))
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
+
+  // 监听同步事件
+  useEffect(() => {
+    const handleSyncStart = (event: SyncEvent) => {
+      setSyncState(prev => ({
+        ...prev,
+        status: SyncStatus.SYNCING,
+        error: null
+      }))
+    }
+
+    const handleSyncComplete = (event: SyncEvent) => {
+      setSyncState(prev => ({
+        ...prev,
+        status: SyncStatus.SUCCESS,
+        lastSyncTime: Date.now(),
+        queueLength: event.data?.remainingItems || 0
+      }))
+    }
+
+    const handleSyncError = (event: SyncEvent) => {
+      setSyncState(prev => ({
+        ...prev,
+        status: SyncStatus.ERROR,
+        error: event.data?.error?.message || '同步失败'
+      }))
+    }
+
+    const handleConflictDetected = (event: SyncEvent) => {
+      setSyncState(prev => ({
+        ...prev,
+        status: SyncStatus.CONFLICT,
+        conflictCount: prev.conflictCount + 1
+      }))
+    }
+
+    syncService.addEventListener('sync_start', handleSyncStart)
+    syncService.addEventListener('sync_complete', handleSyncComplete)
+    syncService.addEventListener('sync_error', handleSyncError)
+    syncService.addEventListener('conflict_detected', handleConflictDetected)
+
+    return () => {
+      syncService.removeEventListener('sync_start', handleSyncStart)
+      syncService.removeEventListener('sync_complete', handleSyncComplete)
+      syncService.removeEventListener('sync_error', handleSyncError)
+      syncService.removeEventListener('conflict_detected', handleConflictDetected)
+    }
+  }, [])
+
+  // 获取队列状态
+  useEffect(() => {
+    const updateQueueStatus = () => {
+      const queueStatus = syncService.getQueueStatus()
+      setSyncState(prev => ({
+        ...prev,
+        queueLength: queueStatus.length
+      }))
+    }
+    
+    // 初始更新
+    updateQueueStatus()
+    
+    // 定期更新
+    const interval = setInterval(updateQueueStatus, 5000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const handleManualSync = async () => {
+    if (!user) return
+    
+    setIsManualSyncing(true)
+    try {
+      await syncService.forceFullSync(user.id)
+    } catch (error) {
+      console.error('手动同步失败:', error)
+    } finally {
+      setIsManualSyncing(false)
+    }
+  }
 
   const getStatusIcon = () => {
     if (!syncState.isOnline) {
@@ -85,17 +177,6 @@ const SyncStatusIndicator: React.FC = () => {
     }
   }
 
-  const handleManualSync = async () => {
-    setIsManualSyncing(true)
-    try {
-      await forceFullSync()
-    } catch (error) {
-      console.error('手动同步失败:', error)
-    } finally {
-      setIsManualSyncing(false)
-    }
-  }
-
   const formatLastSyncTime = (timestamp: number) => {
     if (!timestamp) return '从未同步'
     
@@ -108,8 +189,8 @@ const SyncStatusIndicator: React.FC = () => {
     return `${Math.floor(diff / 86400000)}天前`
   }
 
-  const syncStats = getSyncStats()
-  const queueStatus = getQueueStatus()
+  const syncStats = syncService.getSyncStats()
+  const queueStatus = syncService.getQueueStatus()
 
   return (
     <div className="relative">
@@ -245,7 +326,7 @@ const SyncStatusIndicator: React.FC = () => {
               <div className="flex space-x-2 pt-2 border-t border-gray-200 dark:border-gray-700">
                 <button
                   onClick={handleManualSync}
-                  disabled={isManualSyncing || !syncState.isOnline}
+                  disabled={isManualSyncing || !syncState.isOnline || !user}
                   className="flex-1 flex items-center justify-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
                   <RefreshCw size={14} className={isManualSyncing ? 'animate-spin' : ''} />
@@ -254,8 +335,8 @@ const SyncStatusIndicator: React.FC = () => {
                   </span>
                 </button>
                 <button
-                  onClick={pullFromRemote}
-                  disabled={!syncState.isOnline}
+                  onClick={() => user && syncService.pullFromRemote(user.id)}
+                  disabled={!syncState.isOnline || !user}
                   className="px-3 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                   title="从远程拉取"
                 >

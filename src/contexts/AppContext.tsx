@@ -2,7 +2,7 @@ import React, { createContext, useContext, useReducer, ReactNode, useEffect } fr
 import { PromptVersion, TestResult, ABTest, Comment, PromptTask, Folder, ProjectData } from '../types';
 import { useAuth } from './AuthContext';
 import { TaskService } from '../lib/taskService';
-import { useSyncManager } from '../hooks/useSyncManager';
+import { syncService, SyncOperation } from '../lib/syncService';
 
 interface AppState {
   versions: PromptVersion[];
@@ -315,9 +315,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { user } = useAuth();
   
-  // 在 AppProvider 中初始化同步管理器
-  const syncManager = useSyncManager();
-
   // 🔄 数据同步到数据库的函数
   const syncToDatabase = async (force = false) => {
     if (!user || state.isSyncing) return;

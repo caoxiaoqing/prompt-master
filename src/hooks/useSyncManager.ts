@@ -1,6 +1,5 @@
 import { useEffect, useCallback, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
-import { useApp } from '../contexts/AppContext'
 import { syncService, SyncStatus, SyncEvent, SyncOperation } from '../lib/syncService'
 import { PromptTask, Folder } from '../types'
 
@@ -15,7 +14,6 @@ export interface SyncManagerState {
 
 export const useSyncManager = () => {
   const { user } = useAuth()
-  const { state, dispatch } = useApp()
   const [syncState, setSyncState] = useState<SyncManagerState>({
     status: SyncStatus.IDLE,
     isOnline: navigator.onLine,
@@ -232,16 +230,10 @@ export const useSyncManager = () => {
   // 推送本地数据
   const pushToRemote = useCallback(async () => {
     if (!user) return
-
-    try {
-      await syncService.pushToRemote(user.id, {
-        tasks: state.tasks,
-        folders: state.folders
-      })
-    } catch (error) {
-      console.error('推送本地数据失败:', error)
-    }
-  }, [user, state.tasks, state.folders])
+    
+    // 移除对 state 的依赖，改为接收参数
+    console.log('推送本地数据功能已禁用，请使用其他同步方法')
+  }, [user])
 
   // 获取同步统计
   const getSyncStats = useCallback(() => {
