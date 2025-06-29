@@ -151,6 +151,12 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
   const handlePasswordChange = async () => {
     if (!user) return;
 
+    // 先验证当前密码是否正确
+    if (!passwordForm.currentPassword) {
+      showNotification('error', '请输入当前密码');
+      return;
+    }
+
     if (passwordForm.newPassword !== passwordForm.confirmPassword) {
       showNotification('error', '新密码和确认密码不匹配');
       return;
@@ -164,6 +170,25 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     try {
       setLoading(true);
       
+      // 验证当前密码
+      console.log('🔐 验证当前密码...');
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user.email!,
+        password: passwordForm.currentPassword
+      });
+
+      if (signInError) {
+        console.error('❌ 当前密码验证失败:', signInError);
+        if (signInError.message.includes('Invalid login credentials')) {
+          showNotification('error', '当前密码不正确，请重新输入');
+        } else {
+          showNotification('error', '密码验证失败，请稍后重试');
+        }
+        return;
+      }
+
+      console.log('✅ 当前密码验证成功，开始更新密码');
+      
       const { error } = await supabase.auth.updateUser({
         password: passwordForm.newPassword
       });
@@ -172,6 +197,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
 
       setPasswordForm(initialPasswordForm);
       
+      console.log('✅ 密码修改成功');
       showNotification('success', '密码修改成功');
     } catch (error: any) {
       console.error('Password change error:', error);
