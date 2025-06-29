@@ -58,7 +58,13 @@ export class TaskService {
         throw new Error('Database connection unavailable')
       }
 
-      console.log('📝 创建新任务记录:', { taskId, taskName, folderName })
+      console.log('📝 创建新任务记录:', { 
+        userId, 
+        taskId, 
+        taskName, 
+        folderName,
+        modelParams: defaultModelParams 
+      })
       
       const taskData: Omit<TaskInfo, 'id' | 'created_at'> = {
         uuid: userId,
@@ -70,6 +76,7 @@ export class TaskService {
         model_params: defaultModelParams
       }
 
+      console.log('📋 准备插入的数据:', taskData)
       const { data, error } = await supabase
         .from('task_info')
         .insert([taskData])
@@ -77,7 +84,14 @@ export class TaskService {
         .single()
 
       if (error) {
-        console.error('❌ 创建任务记录失败:', error)
+        console.error('❌ 创建任务记录失败:', {
+          error,
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          taskData
+        })
         throw error
       }
 

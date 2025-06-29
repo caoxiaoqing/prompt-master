@@ -123,11 +123,23 @@ export const useTaskPersistence = ({
     if (!user) return
 
     try {
-      console.log('🔄 创建新任务数据库记录...', { taskId: newTaskId, taskName, folderName })
+      console.log('🔄 创建新任务数据库记录...', { 
+        userId: user.id,
+        taskId: newTaskId, 
+        taskName, 
+        folderName,
+        userEmail: user.email 
+      })
       await TaskService.createTask(user.id, newTaskId, taskName, folderName, defaultModelParams)
       console.log('✅ 任务数据库记录创建成功')
     } catch (error) {
-      console.error('创建任务失败:', error)
+      console.error('❌ 创建任务数据库记录失败:', {
+        error,
+        userId: user.id,
+        taskId: newTaskId,
+        taskName,
+        folderName
+      })
       throw error
     }
   }, [user])

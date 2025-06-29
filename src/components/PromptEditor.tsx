@@ -67,6 +67,12 @@ const PromptEditor: React.FC = () => {
   // 当选择新任务时，更新编辑器内容
   useEffect(() => {
     if (state.currentTask) {
+      console.log('🔄 切换到新任务:', {
+        taskId: state.currentTask.id,
+        taskName: state.currentTask.name,
+        createdInDB: state.currentTask.createdInDB
+      })
+      
       // 关键修复：检查任务是否有记录的加载版本
       const loadedVersionId = state.currentTask.currentLoadedVersionId;
       const versions = state.currentTask.versions || [];
@@ -92,6 +98,40 @@ const PromptEditor: React.FC = () => {
         setMaxTokens(state.currentTask.maxTokens || 1000);
         setCurrentChatHistory(state.currentTask.currentChatHistory || []);
         setCurrentLoadedVersion(null);
+        
+        // 🔄 检测到新任务，准备创建数据库记录
+        if (!state.currentTask.createdInDB && userInfo?.custom_models && userInfo.custom_models.length > 0) {
+          console.log('🔄 检测到新任务，准备创建数据库记录...', {
+            taskId: state.currentTask.id,
+            taskName: state.currentTask.name,
+            hasUser: !!user
+          })
+          
+          // 获取默认模型参数
+          const defaultModel = userInfo.custom_models.find((model: any) => model.isDefault) || userInfo.custom_models[0]
+          if (defaultModel && user) {
+            const defaultModelParams = TaskService.getDefaultModelParams(defaultModel)
+            
+            // 异步创建数据库记录
+            createTask(
+              parseInt(state.currentTask.id),
+              state.currentTask.name,
+              state.folders.find(f => f.id === state.currentTask.folderId)?.name || '默认文件夹',
+              defaultModelParams
+            ).then(() => {
+              console.log('✅ 任务数据库记录创建成功，更新本地状态')
+              // 更新任务状态，标记为已在数据库中创建
+              const updatedTask = {
+                ...state.currentTask!,
+                createdInDB: true
+              }
+              dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
+            }).catch((error) => {
+              console.error('❌ 创建任务数据库记录失败:', error)
+              // 不阻断用户操作，只记录错误
+            })
+          }
+        }
 
         // 如果是新任务且用户已登录，创建数据库记录
         if (user && state.currentTask && !state.currentTask.createdInDB) {
@@ -125,7 +165,6 @@ const PromptEditor: React.FC = () => {
       setCurrentChatHistory([]);
       setCurrentLoadedVersion(null);
     }
-  }, [state.currentTask?.id, dispatch]); // 添加 dispatch 依赖
 
   // 自动保存当前任务的内容 - 添加防抖和条件检查
   useEffect(() => {
