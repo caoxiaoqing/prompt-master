@@ -108,6 +108,8 @@ const ProfileSection: React.FC<ProfileSectionProps> = ({
       if (formData.user_profile_pic) {
         updates.user_profile_pic = formData.user_profile_pic;
       }
+      
+      console.log('📝 Updating user profile:', updates);
 
       await updateUserInfo(updates);
       showNotification('success', '个人资料更新成功！');
