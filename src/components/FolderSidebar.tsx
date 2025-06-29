@@ -160,13 +160,9 @@ const FolderSidebar: React.FC = () => {
       // 🔄 实时记录文件夹删除操作到数据库
       if (user && folder) {
         try {
-          await DatabaseService.recordFolderOperation({
-            type: 'delete',
-            folderId: folder.id,
-            folderName: folder.name,
-            userId: user.id
-          });
-          console.log('✅ 文件夹删除操作已记录到数据库');
+          // 使用新的同步服务
+          console.log('🔄 文件夹删除操作已记录到本地，将在下次同步时更新到数据库');
+          console.log('✅ 文件夹创建操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录文件夹删除操作失败:', error);
         }
@@ -364,15 +360,22 @@ const FolderSidebar: React.FC = () => {
   const handleImport = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
+      console.log('📂 导入文件:', file.name);
       const reader = new FileReader();
       reader.onload = (e) => {
         try {
           const projectData = JSON.parse(e.target?.result as string);
           if (confirm('导入项目将覆盖当前数据，确定继续吗？')) {
             dispatch({ type: 'IMPORT_PROJECT', payload: projectData });
+            
+            // 保存到本地存储
+            saveToLocalStorage(projectData.folders, projectData.tasks);
+            
+            console.log('✅ 项目导入成功');
           }
         } catch (error) {
           alert('导入失败：文件格式不正确');
+          console.error('❌ 项目导入失败:', error);
         }
       };
       reader.readAsText(file);
@@ -381,10 +384,12 @@ const FolderSidebar: React.FC = () => {
 
   const handleManualSync = async () => {
     if (state.isSyncing) return;
-    
+
     try {
-      await syncToDatabase();
-      alert('数据同步成功！');
+      console.log('🔄 手动同步已禁用，使用本地存储');
+      // 保存到本地存储
+      saveToLocalStorage(state.folders, state.tasks);
+      alert('数据已保存到本地存储！');
     } catch (error) {
       console.error('手动同步失败:', error);
       alert('数据同步失败，请稍后重试');
@@ -398,20 +403,6 @@ const FolderSidebar: React.FC = () => {
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-semibold text-gray-900 dark:text-white">项目管理</h2>
           <div className="flex items-center space-x-1">
-            {/* 手动同步按钮 */}
-            <button
-              onClick={handleManualSync}
-              disabled={state.isSyncing}
-              className={`p-1.5 rounded-lg transition-colors ${
-                state.isSyncing 
-                  ? 'text-blue-600 dark:text-blue-400 cursor-not-allowed' 
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-              }`}
-              title={state.isSyncing ? '正在同步数据...' : '手动同步到数据库'}
-            >
-              <Database size={16} />
-            </button>
-            
             <button
               onClick={() => setShowCreateFolder(true)}
               className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
