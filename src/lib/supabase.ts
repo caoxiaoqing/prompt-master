@@ -491,6 +491,12 @@ export const authService = {
           : model
       )
 
+      // 4. 检查是否找到了要更新的模型
+      const targetModel = existingModels.find((model: any) => model.id === modelId)
+      if (!targetModel) {
+        throw new Error('要更新的模型不存在')
+      }
+
       const { data, error } = await supabase
         .from('user_info')
         .update({ custom_models: updatedModels })
@@ -504,8 +510,6 @@ export const authService = {
       }
 
       console.log('✅ 模型配置更新成功:', modelConfig.name)
-      // 强制刷新用户信息以获取最新的 custom_models 数据
-      const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
       
       return { userInfo: data }
     } catch (error) {
