@@ -135,7 +135,7 @@ const PromptEditor: React.FC = () => {
         }
 
         // 如果是新任务且用户已登录，创建数据库记录
-        if (user && state.currentTask && !state.currentTask.createdInDB) {
+        if (false && user && state.currentTask && !state.currentTask.createdInDB) {
           console.log('🔄 检测到新任务，准备创建数据库记录...', {
             taskId: state.currentTask.id,
             taskName: state.currentTask.name,
