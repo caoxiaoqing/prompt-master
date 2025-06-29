@@ -65,8 +65,6 @@ export class TaskService {
         modelParams: defaultModelParams 
       })
       
-      const taskData: Omit<TaskInfo, 'id' | 'created_at'> = {
-      }
       const taskData: Omit<TaskInfo, 'created_at'> = {
         uuid: userId,
         task_id: taskId,
