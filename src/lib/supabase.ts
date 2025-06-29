@@ -10,14 +10,18 @@ if (!supabaseUrl || !supabaseAnonKey) {
 // Add connection validation
 const validateSupabaseConnection = async () => {
   try {
+    console.log('🔗 验证 Supabase 连接...', { url: supabaseUrl })
     const response = await fetch(`${supabaseUrl}/rest/v1/`, {
       method: 'HEAD',
       headers: {
         'apikey': supabaseAnonKey,
         'Authorization': `Bearer ${supabaseAnonKey}`
-      }
+      },
+      signal: AbortSignal.timeout(5000) // 5秒超时
     })
-    return response.ok
+    const isConnected = response.ok
+    console.log('🔗 Supabase 连接验证结果:', { isConnected, status: response.status })
+    return isConnected
   } catch (error) {
     console.error('Supabase connection validation failed:', error)
     return false
@@ -66,11 +70,16 @@ validateSupabaseConnection().then(connected => {
   isSupabaseConnected = connected
   if (!connected) {
     console.warn('⚠️ Supabase connection failed. App will run in offline mode.')
+  } else {
+    console.log('✅ Supabase connection established successfully.')
   }
 })
 
 // Helper function to check if Supabase is available
-export const isSupabaseAvailable = () => isSupabaseConnected
+export const isSupabaseAvailable = () => {
+  console.log('🔍 检查 Supabase 可用性:', { isSupabaseConnected })
+  return isSupabaseConnected
+}
 
 // 用户信息类型定义
 export interface UserInfo {

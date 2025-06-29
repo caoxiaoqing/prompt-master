@@ -146,6 +146,16 @@ const PromptEditor: React.FC = () => {
           const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
           const defaultParams = getCurrentModelParams();
           
+          // 添加创建状态指示
+          console.log('📊 开始创建任务数据库记录，参数检查:', {
+            taskId,
+            taskName: state.currentTask.name,
+            folderName,
+            defaultParams,
+            userId: user.id,
+            userEmail: user.email
+          });
+          
           createTask(taskId, state.currentTask.name, folderName, defaultParams)
             .then(() => {
               console.log('✅ 任务数据库记录创建成功，更新本地状态');
@@ -154,8 +164,16 @@ const PromptEditor: React.FC = () => {
               dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
             })
             .catch(error => {
-              console.error('创建任务数据库记录失败:', error);
+              console.error('❌ 创建任务数据库记录失败:', {
+                error,
+                taskId,
+                taskName: state.currentTask?.name,
+                userId: user.id,
+                errorMessage: error.message,
+                errorStack: error.stack
+              });
               // 即使创建失败，也不影响用户继续使用
+              // 可以考虑显示一个非阻塞的错误提示
             });
         }
       }

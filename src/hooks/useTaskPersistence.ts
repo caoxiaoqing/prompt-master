@@ -130,8 +130,31 @@ export const useTaskPersistence = ({
         folderName,
         userEmail: user.email 
       })
-      await TaskService.createTask(user.id, newTaskId, taskName, folderName, defaultModelParams)
-      console.log('✅ 任务数据库记录创建成功')
+      
+      // 添加重试机制
+      let retryCount = 0
+      const maxRetries = 3
+      
+      while (retryCount < maxRetries) {
+        try {
+          console.log(`🔄 尝试创建任务 (第 ${retryCount + 1} 次)...`)
+          await TaskService.createTask(user.id, newTaskId, taskName, folderName, defaultModelParams)
+          console.log('✅ 任务数据库记录创建成功')
+          return // 成功则退出
+        } catch (error) {
+          retryCount++
+          console.error(`❌ 第 ${retryCount} 次创建尝试失败:`, error)
+          
+          if (retryCount >= maxRetries) {
+            throw error // 达到最大重试次数，抛出错误
+          }
+          
+          // 等待一段时间后重试
+          const delay = Math.pow(2, retryCount) * 1000 // 指数退避：2s, 4s, 8s
+          console.log(`⏳ 等待 ${delay}ms 后重试...`)
+          await new Promise(resolve => setTimeout(resolve, delay))
+        }
+      }
     } catch (error) {
       console.error('❌ 创建任务数据库记录失败:', {
         error,

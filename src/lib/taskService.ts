@@ -41,6 +41,33 @@ export interface TaskInfo {
 export class TaskService {
   
   /**
+   * 测试数据库连接
+   */
+  static async testConnection(userId: string): Promise<boolean> {
+    try {
+      console.log('🧪 测试数据库连接...', { userId })
+      
+      // 尝试执行一个简单的查询
+      const { data, error } = await supabase
+        .from('task_info')
+        .select('count')
+        .eq('uuid', userId)
+        .limit(1)
+      
+      if (error) {
+        console.error('❌ 数据库连接测试失败:', error)
+        return false
+      }
+      
+      console.log('✅ 数据库连接测试成功:', data)
+      return true
+    } catch (error) {
+      console.error('💥 数据库连接测试出错:', error)
+      return false
+    }
+  }
+  
+  /**
    * 创建新任务记录
    */
   static async createTask(
@@ -56,6 +83,15 @@ export class TaskService {
         console.warn('⚠️ Supabase 不可用，跳过数据库操作')
         throw new Error('Database connection unavailable')
       }
+      
+      // 先测试数据库连接
+      console.log('🧪 执行数据库连接测试...')
+      const connectionTest = await TaskService.testConnection(userId)
+      if (!connectionTest) {
+        console.error('❌ 数据库连接测试失败，无法创建任务')
+        throw new Error('Database connection test failed')
+      }
+      console.log('✅ 数据库连接测试通过')
 
       console.log('📝 创建新任务记录:', { 
         userId, 
@@ -76,11 +112,25 @@ export class TaskService {
       }
 
       console.log('📋 准备插入的数据:', taskData)
+      
+      // 添加更详细的调试信息
+      console.log('🔗 Supabase 连接状态检查...')
+      console.log('📊 数据验证:', {
+        hasUserId: !!userId,
+        hasTaskId: !!taskId,
+        hasTaskName: !!taskName,
+        hasFolderName: !!folderName,
+        hasModelParams: !!defaultModelParams
+      })
+      
+      console.log('💾 开始执行数据库插入操作...')
       const { data, error } = await supabase
         .from('task_info')
         .insert([taskData])
         .select()
         .single()
+      
+      console.log('📤 数据库操作完成，检查结果...')
 
       if (error) {
         console.error('❌ 创建任务记录失败:', {
@@ -93,11 +143,23 @@ export class TaskService {
         })
         throw error
       }
+      
+      console.log('📥 数据库返回结果:', data)
 
       console.log('✅ 任务记录创建成功:', { taskId: data.task_id, taskName: data.task_name })
       return data
     } catch (error) {
       console.error('💥 创建任务记录出错:', error)
+      
+      // 添加更详细的错误信息
+      if (error instanceof Error) {
+        console.error('错误详情:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        })
+      }
+      
       throw error
     }
   }
