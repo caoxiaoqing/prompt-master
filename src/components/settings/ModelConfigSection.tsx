@@ -491,34 +491,166 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     temperature: model?.parameters.temperature || 0.8
   });
   const [showApiKey, setShowApiKey] = useState(false);
+  
+  // 表单验证错误状态
+  const [validationErrors, setValidationErrors] = useState({
+    name: '',
+    baseUrl: '',
+    apiKey: '',
+    topK: '',
+    topP: '',
+    temperature: ''
+  });
 
+  // 实时验证函数
+  const validateField = (field: string, value: string | number): string => {
+    switch (field) {
+      case 'name':
+        const nameStr = value as string;
+        if (!nameStr.trim()) {
+          return '模型名称不能为空';
+        }
+        if (nameStr.trim().length < 2) {
+          return '模型名称至少需要2个字符';
+        }
+        if (nameStr.trim().length > 50) {
+          return '模型名称不能超过50个字符';
+        }
+        if (!/^[a-zA-Z0-9\u4e00-\u9fa5\s\-_.]+$/.test(nameStr.trim())) {
+          return '模型名称只能包含字母、数字、中文、空格、连字符、下划线和点';
+        }
+        return '';
+        
+      case 'baseUrl':
+        const urlStr = value as string;
+        if (!urlStr.trim()) {
+          return 'Base URL 不能为空';
+        }
+        try {
+          const url = new URL(urlStr.trim());
+          if (!['http:', 'https:'].includes(url.protocol)) {
+            return 'Base URL 必须使用 HTTP 或 HTTPS 协议';
+          }
+          if (!url.hostname) {
+            return 'Base URL 必须包含有效的主机名';
+          }
+          return '';
+        } catch {
+          return '请输入有效的 URL 格式（如：https://api.example.com/v1）';
+        }
+        
+      case 'apiKey':
+        const keyStr = value as string;
+        if (!keyStr.trim()) {
+          return 'API Key 不能为空';
+        }
+        if (keyStr.trim().length < 10) {
+          return 'API Key 长度至少需要10个字符';
+        }
+        if (keyStr.trim().length > 200) {
+          return 'API Key 长度不能超过200个字符';
+        }
+        if (!/^[a-zA-Z0-9\-_.]+$/.test(keyStr.trim())) {
+          return 'API Key 只能包含字母、数字、连字符、下划线和点';
+        }
+        return '';
+        
+      case 'topK':
+        const topKNum = value as number;
+        if (isNaN(topKNum)) {
+          return 'Top-K 必须是数字';
+        }
+        if (topKNum < 1) {
+          return 'Top-K 不能小于 1';
+        }
+        if (topKNum > 100) {
+          return 'Top-K 不能大于 100';
+        }
+        if (!Number.isInteger(topKNum)) {
+          return 'Top-K 必须是整数';
+        }
+        return '';
+        
+      case 'topP':
+        const topPNum = value as number;
+        if (isNaN(topPNum)) {
+          return 'Top-P 必须是数字';
+        }
+        if (topPNum < 0) {
+          return 'Top-P 不能小于 0';
+        }
+        if (topPNum > 1) {
+          return 'Top-P 不能大于 1';
+        }
+        return '';
+        
+      case 'temperature':
+        const tempNum = value as number;
+        if (isNaN(tempNum)) {
+          return 'Temperature 必须是数字';
+        }
+        if (tempNum < 0) {
+          return 'Temperature 不能小于 0';
+        }
+        if (tempNum > 2) {
+          return 'Temperature 不能大于 2';
+        }
+        return '';
+        
+      default:
+        return '';
+    }
+  };
   const handleInputChange = (field: string, value: string | number) => {
     if (modalLoading) return; // 防止在保存过程中修改表单
+    
+    // 更新表单数据
     setFormData(prev => ({ ...prev, [field]: value }));
+    
+    // 实时验证
+    const error = validateField(field, value);
+    setValidationErrors(prev => ({ ...prev, [field]: error }));
   };
 
   // 重置表单到初始状态
   const handleResetForm = () => {
     setFormData(initialFormData);
+    setValidationErrors({
+      name: '',
+      baseUrl: '',
+      apiKey: '',
+      topK: '',
+      topP: '',
+      temperature: ''
+    });
   };
 
+  // 验证整个表单
+  const validateForm = (): boolean => {
+    const errors = {
+      name: validateField('name', formData.name),
+      baseUrl: validateField('baseUrl', formData.baseUrl),
+      apiKey: validateField('apiKey', formData.apiKey),
+      topK: validateField('topK', formData.topK),
+      topP: validateField('topP', formData.topP),
+      temperature: validateField('temperature', formData.temperature)
+    };
+    
+    setValidationErrors(errors);
+    
+    // 检查是否有任何错误
+    return !Object.values(errors).some(error => error !== '');
+  };
   const handleSave = () => {
     // 防止重复提交
     if (modalLoading) return;
     
-    // 验证表单
-    if (!formData.name.trim() || !formData.baseUrl.trim() || !formData.apiKey.trim()) {
-      console.warn('⚠️ 表单验证失败: 缺少必填字段');
+    // 完整验证表单
+    if (!validateForm()) {
+      console.warn('⚠️ 表单验证失败');
       return;
     }
 
-    // 验证 URL 格式
-    try {
-      new URL(formData.baseUrl);
-    } catch {
-      console.warn('⚠️ Base URL 格式无效');
-      return;
-    }
 
     console.log('📝 开始保存模型配置:', formData.name);
     
@@ -540,17 +672,23 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
       // 组件卸载时重置状态
       setShowApiKey(false);
       setFormData(initialFormData);
+      setValidationErrors({
+        name: '',
+        baseUrl: '',
+        apiKey: '',
+        topK: '',
+        topP: '',
+        temperature: ''
+      });
     };
   }, []);
 
+  // 检查表单是否有效（没有验证错误且所有必填字段都已填写）
   const isFormValid = 
+    !Object.values(validationErrors).some(error => error !== '') &&
     formData.name.trim().length > 0 &&
     formData.baseUrl.trim().length > 0 &&
-    formData.apiKey.trim().length > 0 &&
-    formData.topK > 0 &&
-    formData.topP >= 0 && formData.topP <= 1 &&
-    formData.temperature >= 0 && formData.temperature <= 2 &&
-    !isNaN(formData.topK) && !isNaN(formData.topP) && !isNaN(formData.temperature);
+    formData.apiKey.trim().length > 0;
 
   // 检查表单是否有变化
   const hasChanges = 
@@ -561,6 +699,14 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     formData.topP !== initialFormData.topP ||
     formData.temperature !== initialFormData.temperature;
 
+  // 获取字段的样式类名（根据验证状态）
+  const getFieldClassName = (field: string, baseClassName: string): string => {
+    const hasError = validationErrors[field as keyof typeof validationErrors];
+    if (hasError) {
+      return `${baseClassName} border-red-300 dark:border-red-600 focus:ring-red-500 focus:border-red-500`;
+    }
+    return `${baseClassName} border-gray-300 dark:border-gray-600 focus:ring-blue-500 focus:border-transparent`;
+  };
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -625,9 +771,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 value={formData.name}
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="例如：GPT-4 Custom"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getFieldClassName('name', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
                 disabled={modalLoading}
               />
+              {validationErrors.name && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
+                  <AlertTriangle size={12} />
+                  <span>{validationErrors.name}</span>
+                </p>
+              )}
             </div>
 
             <div>
@@ -639,9 +791,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 value={formData.baseUrl}
                 onChange={(e) => handleInputChange('baseUrl', e.target.value)}
                 placeholder="https://api.openai.com/v1"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className={getFieldClassName('baseUrl', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
                 disabled={modalLoading}
               />
+              {validationErrors.baseUrl && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
+                  <AlertTriangle size={12} />
+                  <span>{validationErrors.baseUrl}</span>
+                </p>
+              )}
             </div>
 
             <div>
@@ -654,7 +812,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.apiKey}
                   onChange={(e) => handleInputChange('apiKey', e.target.value)}
                   placeholder="sk-..."
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={getFieldClassName('apiKey', 'w-full px-4 py-3 pr-12 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
                   disabled={modalLoading}
                 />
                 <button
@@ -666,6 +824,12 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+              {validationErrors.apiKey && (
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
+                  <AlertTriangle size={12} />
+                  <span>{validationErrors.apiKey}</span>
+                </p>
+              )}
             </div>
           </div>
 
@@ -684,12 +848,18 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   max="100"
                   value={formData.topK}
                   onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={getFieldClassName('topK', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
                   disabled={modalLoading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   限制候选词汇数量 (1-100)
                 </p>
+                {validationErrors.topK && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
+                    <AlertTriangle size={12} />
+                    <span>{validationErrors.topK}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -703,12 +873,18 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   step="0.1"
                   value={formData.topP}
                   onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={getFieldClassName('topP', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
                   disabled={modalLoading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   核采样概率 (0.0-1.0)
                 </p>
+                {validationErrors.topP && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
+                    <AlertTriangle size={12} />
+                    <span>{validationErrors.topP}</span>
+                  </p>
+                )}
               </div>
 
               <div>
@@ -722,12 +898,18 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   step="0.1"
                   value={formData.temperature}
                   onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  className={getFieldClassName('temperature', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
                   disabled={modalLoading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   输出随机性 (0.0-2.0)
                 </p>
+                {validationErrors.temperature && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
+                    <AlertTriangle size={12} />
+                    <span>{validationErrors.temperature}</span>
+                  </p>
+                )}
               </div>
             </div>
           </div>
