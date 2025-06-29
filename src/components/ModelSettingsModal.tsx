@@ -9,7 +9,7 @@ import {
   RotateCcw,
   Save
 } from 'lucide-react';
-import { mockModels } from '../utils/mockData';
+import { TaskService, ModelParams } from '../lib/taskService';
 
 interface ModelSettingsModalProps {
   temperature: number;
@@ -34,6 +34,9 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
   const [localMaxTokens, setLocalMaxTokens] = useState(maxTokens);
   const [localTopK, setLocalTopK] = useState(topK);
   const [localTopP, setLocalTopP] = useState(topP);
+  const [isTestingConnection, setIsTestingConnection] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'error'>('idle');
+  const [connectionMessage, setConnectionMessage] = useState('');
 
   const currentModel = selectedModel;
 
@@ -47,6 +50,52 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
     setLocalMaxTokens(1000);
     setLocalTopK(50);
     setLocalTopP(1.0);
+  };
+
+  const testConnection = async () => {
+    if (!currentModel) return;
+    
+    setIsTestingConnection(true);
+    setConnectionStatus('testing');
+    setConnectionMessage('正在测试连接...');
+    
+    try {
+      // 构建一个简单的测试请求
+      const testMessage = {
+        id: 'test-' + Date.now(),
+        role: 'user',
+        content: 'Hello, this is a connection test.',
+        timestamp: new Date()
+      };
+      
+      // 使用 OpenAI 服务发送测试请求
+      const response = await fetch(`${currentModel.baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentModel.apiKey}`
+        },
+        body: JSON.stringify({
+          model: currentModel.name,
+          messages: [{ role: 'user', content: 'Hello, this is a connection test.' }],
+          max_tokens: 5
+        })
+      });
+      
+      if (response.ok) {
+        setConnectionStatus('success');
+        setConnectionMessage('连接测试成功！API 响应正常。');
+      } else {
+        const errorData = await response.json().catch(() => null);
+        setConnectionStatus('error');
+        setConnectionMessage(`连接测试失败: ${response.status} ${response.statusText}${errorData ? ' - ' + JSON.stringify(errorData.error || errorData) : ''}`);
+      }
+    } catch (error) {
+      setConnectionStatus('error');
+      setConnectionMessage(`连接测试失败: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setIsTestingConnection(false);
+    }
   };
 
   const getTemperatureDescription = (temp: number) => {
@@ -291,6 +340,50 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
               </div>
             </div>
           </div>
+          
+          {/* Connection Test */}
+          {currentModel && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <button
+                  onClick={testConnection}
+                  disabled={isTestingConnection}
+                  className="flex items-center space-x-2 px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  {isTestingConnection ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    <Activity size={16} />
+                  )}
+                  <span>{isTestingConnection ? '测试中...' : '测试连接'}</span>
+                </button>
+                
+                {connectionStatus !== 'idle' && (
+                  <div className={`flex items-center space-x-2 text-sm ${
+                    connectionStatus === 'success' ? 'text-green-600 dark:text-green-400' : 
+                    connectionStatus === 'error' ? 'text-red-600 dark:text-red-400' : 
+                    'text-blue-600 dark:text-blue-400'
+                  }`}>
+                    {connectionStatus === 'success' && <Check size={16} />}
+                    {connectionStatus === 'error' && <AlertTriangle size={16} />}
+                    {connectionStatus === 'testing' && <Loader2 size={16} className="animate-spin" />}
+                    <span>{connectionStatus === 'testing' ? '测试中...' : connectionMessage}</span>
+                  </div>
+                )}
+              </div>
+              
+              {connectionStatus === 'error' && (
+                <div className="p-3 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-sm text-red-700 dark:text-red-300">
+                    {connectionMessage}
+                  </p>
+                  <p className="text-xs text-red-600 dark:text-red-400 mt-2">
+                    请检查您的 API 密钥和基础 URL 是否正确，以及网络连接是否正常。
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Model Info */}
           {currentModel && (

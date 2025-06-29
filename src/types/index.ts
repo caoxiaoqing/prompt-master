@@ -82,6 +82,7 @@ export interface ChatMessage {
   content: string;
   timestamp: Date;
   isLoading?: boolean;
+  isError?: boolean;
   tokenUsage?: {
     prompt: number;
     completion: number;

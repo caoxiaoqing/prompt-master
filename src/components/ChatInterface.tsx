@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
-import { generateMockResponse, mockModels } from '../utils/mockData';
+import { OpenAIService } from '../lib/openaiService';
 import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
 
@@ -39,6 +39,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const { state, dispatch } = useApp();
   const { userInfo } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -196,67 +197,113 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }, 150); // 稍微延迟确保DOM更新完成
 
     try {
-      // 构建完整的对话上下文 - 修复：只有在有 system prompt 时才添加
-      const conversationContext = [
+      // 构建完整的对话上下文
+      const conversationContext: ChatMessage[] = [
         // 只有在有 system prompt 时才添加系统消息
-        ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
+        ...(systemPrompt.trim() ? [{
+          id: 'system-' + Date.now(),
+          role: 'system',
+          content: systemPrompt,
+          timestamp: new Date()
+        }] : []),
         ...messages.filter(m => !m.isLoading).map(m => ({
+          id: m.id,
           role: m.role,
-          content: m.content
+          content: m.content,
+          timestamp: m.timestamp
         })),
-        { role: 'user', content: userInput.trim() }
+        {
+          id: userMessage.id,
+          role: 'user',
+          content: userInput.trim(),
+          timestamp: new Date()
+        }
       ];
 
-      const result = await generateMockResponse(
-        JSON.stringify(conversationContext), 
-        state.selectedModel
+      // 检查是否有选择的自定义模型
+      if (!state.selectedCustomModel) {
+        throw new Error('请先在账户设置中配置并选择一个自定义模型');
+      }
+      
+      // 获取模型配置
+      const modelConfig = state.selectedCustomModel;
+      
+      // 设置流式输出的初始状态
+      setStreamingMessage('');
+      
+      // 使用流式 API
+      await OpenAIService.createStreamingChatCompletion(
+        conversationContext,
+        {
+          baseURL: modelConfig.baseUrl,
+          apiKey: modelConfig.apiKey,
+          model: modelConfig.name,
+          temperature: temperature,
+          max_tokens: maxTokens,
+          top_p: modelConfig.topP || 1.0,
+          top_k: modelConfig.topK || 50
+        },
+        // 处理每个文本块
+        (chunk) => {
+          setStreamingMessage(prev => prev + chunk);
+        },
+        // 处理完成回调
+        (tokenUsage) => {
+          // 创建完整的助手消息
+          const assistantMessage: ChatMessage = {
+            id: loadingMessage.id,
+            role: 'assistant',
+            content: streamingMessage,
+            timestamp: new Date(),
+            tokenUsage: tokenUsage,
+            responseTime: Date.now() - loadingMessage.timestamp.getTime()
+          };
+          
+          // 更新消息列表
+          setMessages(prev => 
+            prev.map(msg => 
+              msg.id === loadingMessage.id ? assistantMessage : msg
+            )
+          );
+          
+          // 更新任务状态
+          if (state.currentTask) {
+            const updatedTask = {
+              ...state.currentTask,
+              responseTime: assistantMessage.responseTime,
+              tokenUsage: tokenUsage,
+              updatedAt: new Date()
+            };
+            dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+          }
+          
+          // 重置流式消息
+          setStreamingMessage('');
+          
+          // 重置加载状态
+          setIsLoading(false);
+        }
       );
 
+    } catch (error) {
+      console.error('Error sending message:', error);
+      
+      // 显示错误消息
+      const errorMessage = error instanceof Error ? error.message : '发送消息失败，请稍后重试';
+      
+      // 更新加载中的消息为错误消息
       const assistantMessage: ChatMessage = {
         id: loadingMessage.id,
         role: 'assistant',
-        content: result.response,
+        content: `**错误:** ${errorMessage}`,
         timestamp: new Date(),
-        tokenUsage: result.tokenUsage,
-        responseTime: result.responseTime
+        isError: true
       };
-
+      
       setMessages(prev => 
         prev.map(msg => 
           msg.id === loadingMessage.id ? assistantMessage : msg
         )
-      );
-
-      // 更新任务状态，包含完整的聊天历史和响应数据
-      const finalMessages = messages.map(msg => 
-        msg.id === loadingMessage.id ? assistantMessage : msg
-      );
-      updateTaskWithMessages(finalMessages);
-      
-      // 单独更新任务的响应时间和token使用情况
-      setTimeout(() => {
-        if (state.currentTask) {
-          const updatedTask = {
-            ...state.currentTask,
-            responseTime: result.responseTime,
-            tokenUsage: result.tokenUsage,
-            updatedAt: new Date()
-          };
-          dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-        }
-      }, 100);
-
-      // 响应完成后再次确保输入框聚焦
-      setTimeout(() => {
-        if (inputRef.current) {
-          inputRef.current.focus();
-        }
-      }, 100);
-
-    } catch (error) {
-      console.error('Error sending message:', error);
-      setMessages(prev => 
-        prev.filter(msg => msg.id !== loadingMessage.id)
       );
       
       // 即使出错也要保持输入框聚焦
@@ -598,7 +645,14 @@ const MessageBubble: React.FC<{
             {message.isLoading ? (
               <div className="flex items-center space-x-2">
                 <Loader2 size={16} className="animate-spin" />
-                <span className="text-sm">正在思考...</span>
+                <span className="text-sm">
+                  {streamingMessage ? '正在回答...' : '正在思考...'}
+                </span>
+                {streamingMessage && (
+                  <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                    {streamingMessage}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -608,7 +662,7 @@ const MessageBubble: React.FC<{
           </div>
 
           {/* Message Actions and Stats */}
-          <div className="flex items-center space-x-2 mt-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div className={`flex items-center space-x-2 mt-1 ${message.isLoading ? 'opacity-0' : 'opacity-0 group-hover:opacity-100 transition-opacity'}`}>
             <span className="text-xs text-gray-500">
               {message.timestamp.toLocaleTimeString('zh-CN', { 
                 hour: '2-digit', 
@@ -623,6 +677,9 @@ const MessageBubble: React.FC<{
             {message.tokenUsage && (
               <span className="text-xs text-gray-500">
                 {message.tokenUsage.total} tokens
+                {message.isError && (
+                  <span className="ml-2 text-red-500">发生错误</span>
+                )}
               </span>
             )}
             {!message.isLoading && (
@@ -634,7 +691,7 @@ const MessageBubble: React.FC<{
                 >
                   {copied ? <Check size={12} /> : <Copy size={12} />}
                 </button>
-                {canRegenerate && (
+                {canRegenerate && !message.isError && (
                   <button
                     onClick={onRegenerate}
                     className="p-1 hover:bg-gray-100 dark:hover:bg-gray-600 rounded transition-colors"
