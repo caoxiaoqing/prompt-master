@@ -162,7 +162,10 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     console.log('🔄 开始保存新模型:', modelData.name);
 
     try {
-      // 不在这里设置 loading，让模态框内部处理
+      // 调用数据库添加操作前进行基本验证
+      if (!modelData.name.trim() || !modelData.baseUrl.trim() || !modelData.apiKey.trim()) {
+        throw new Error('请填写所有必填字段');
+      }
       
       // 调用数据库添加操作
       const { model: newModel } = await authService.addCustomModel(user.id, {
@@ -209,7 +212,10 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     console.log('🔄 开始更新模型:', modelId, modelData.name);
 
     try {
-      // 不在这里设置 loading，让模态框内部处理
+      // 调用数据库更新操作前进行基本验证
+      if (!modelData.name.trim() || !modelData.baseUrl.trim() || !modelData.apiKey.trim()) {
+        throw new Error('请填写所有必填字段');
+      }
       
       // 调用数据库更新操作
       await authService.updateCustomModel(user.id, modelId, {
@@ -414,8 +420,9 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
           <ModelConfigModal
             model={editingModel}
             onSave={async (modelData, setModalLoading) => {
+              console.log('📝 模态框保存操作开始:', modelData.name);
+              
               try {
-                console.log('📝 模态框保存操作开始');
                 setModalLoading(true);
                 
                 if (editingModel) {
@@ -431,10 +438,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                 setShowAddModal(false);
                 setEditingModel(null);
               } catch (error) {
-                // 保存失败时不关闭模态框，让用户可以重试
-                console.error('❌ 保存失败，保持模态框打开:', error);
-                // 错误已经在 handleSaveModel 或 handleUpdateModel 中处理了
+                console.error('❌ 保存失败:', error);
+                // 错误已经在 handleSaveModel 或 handleUpdateModel 中通过 showNotification 处理了
+                // 这里不需要额外处理，只需要确保不关闭模态框
               } finally {
+                // 关键修复：确保无论成功还是失败都重置加载状态
                 setModalLoading(false);
               }
             }}
@@ -500,7 +508,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     
     // 验证表单
     if (!formData.name.trim() || !formData.baseUrl.trim() || !formData.apiKey.trim()) {
-      console.warn('⚠️ 表单验证失败');
+      console.warn('⚠️ 表单验证失败: 缺少必填字段');
+      return;
+    }
+
+    // 验证 URL 格式
+    try {
+      new URL(formData.baseUrl);
+    } catch {
+      console.warn('⚠️ Base URL 格式无效');
       return;
     }
 
