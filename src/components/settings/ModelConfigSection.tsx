@@ -208,11 +208,17 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const handleSaveModel = async (modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
     if (!user) return;
     
+    
     console.log('🔄 开始保存新模型:', {
       name: modelData.name,
       baseUrl: modelData.baseUrl,
       hasApiKey: !!modelData.apiKey,
       parameters: modelData.parameters
+    });
+
+    // 添加超时保护
+    const timeoutPromise = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error('操作超时，请重试')), 30000); // 30秒超时
     });
 
     try {
@@ -224,7 +230,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       console.log('📝 调用数据库添加操作...');
       
       // 调用数据库添加操作
-      const { model: newModel } = await authService.addCustomModel(user.id, {
+      const result = await Promise.race([
+        authService.addCustomModel(user.id, {
         name: modelData.name,
         baseUrl: modelData.baseUrl,
         apiKey: modelData.apiKey,
@@ -232,7 +239,10 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         topP: modelData.parameters.topP,
         temperature: modelData.parameters.temperature
       });
+        timeoutPromise
+      ]);
       
+      const { model: newModel } = result as any;
       console.log('✅ 数据库保存成功:', newModel);
       
       // 更新本地状态

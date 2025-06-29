@@ -386,6 +386,10 @@ export const authService = {
       }
 
       const existingModels = existingUser?.custom_models || []
+      console.log('📋 现有模型数据:', {
+        existingUser: !!existingUser,
+        customModels: existingUser?.custom_models
+      })
       console.log('📋 现有模型数量:', existingModels.length)
       
       // 检查是否存在相同配置的模型
@@ -427,12 +431,18 @@ export const authService = {
       // 强制刷新用户信息以获取最新的 custom_models 数据
       console.log('🔄 强制刷新用户信息...')
       const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+      console.log('🔄 刷新结果:', !!refreshedUserInfo)
       
       // 4. 更新用户的自定义模型列表
       const updatedModels = [...existingModels, newModel]
       const updateData = {
         custom_models: updatedModels
       }
+
+      console.log('💾 准备更新数据库:', {
+        userId,
+        modelsCount: updatedModels.length
+      })
 
       console.log('💾 开始更新数据库...', {
         totalModels: updatedModels.length,
@@ -447,6 +457,7 @@ export const authService = {
         .single()
 
       if (error) {
+        console.error('❌ 数据库更新错误详情:', error)
         console.error('❌ 添加模型配置失败:', error)
         throw new Error(`数据库更新失败: ${error.message}`)
       }
@@ -457,6 +468,7 @@ export const authService = {
         totalModelsInDB: data.custom_models?.length || 0
       })
       
+      console.log('✅ 操作完成，返回结果')
       return { model: newModel, userInfo: data }
     } catch (error) {
       console.error('💥 添加模型配置出错:', error)
