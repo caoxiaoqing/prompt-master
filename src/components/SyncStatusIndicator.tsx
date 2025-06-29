@@ -350,3 +350,5 @@ export const SyncStatusIndicator: React.FC = () => {
     </div>
   )
 }
+
+export default SyncStatusIndicator
