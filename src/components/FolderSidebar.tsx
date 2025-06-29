@@ -20,8 +20,7 @@ import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { TaskService } from '../lib/taskService';
 import { Folder as FolderType, PromptTask, ProjectData } from '../types';
-import { syncService, SyncOperation } from '../lib/syncService';
-import SyncStatusIndicator from './SyncStatusIndicator';
+import { syncService, SyncOperation } from '../lib/syncService'; 
 
 const FolderSidebar: React.FC = () => {
   const { state, dispatch, syncToDatabase } = useApp();
@@ -406,7 +405,7 @@ const FolderSidebar: React.FC = () => {
       </div>
 
       {/* 底部统计栏 - 显示文件夹数、任务数和数据状态 */}
-      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0 space-y-2">
+      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0">
         <div className="flex items-center justify-between text-xs">
           {/* 左侧统计信息 */}
           <div className="flex items-center space-x-6">
@@ -431,6 +430,18 @@ const FolderSidebar: React.FC = () => {
           
           {/* 右侧数据状态 */}
           <div className="flex items-center space-x-2">
+            {state.isDataLoaded ? (
+              <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                <Database size={12} />
+                <span>已同步</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1 text-gray-500">
+                <Database size={12} />
+                <span>本地</span>
+              </div>
+            )}
+          </div>
             {state.isDataLoaded ? (
               <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
                 <Database size={12} />
