@@ -649,11 +649,11 @@ const MessageBubble: React.FC<{
                   {streamingMessage.length > 0 ? '正在回答...' : '正在思考...'}
                 </span>
               </div>
-              {streamingMessage.length > 0 ? (
+              {streamingMessage.length > 0 && (
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {streamingMessage}
                   </div>
-              ) : null}
+              )}
             ) : (
               <div className="whitespace-pre-wrap text-sm leading-relaxed">
                 {message.content}
