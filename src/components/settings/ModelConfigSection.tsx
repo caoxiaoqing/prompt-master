@@ -19,7 +19,7 @@ import {
   RotateCcw
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { UserInfo } from '../../lib/supabase';
+import { UserInfo, authService } from '../../lib/supabase';
 
 interface ModelConfig {
   id: string;
@@ -60,9 +60,20 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   // Load models from userInfo on component mount
   useEffect(() => {
     if (userInfo) {
-      // Parse existing model configurations from userInfo
-      // This is a simplified version - you might store this differently
-      const savedModels: ModelConfig[] = [];
+      // 从 userInfo 中加载自定义模型配置
+      const savedModels: ModelConfig[] = (userInfo.custom_models || []).map((model: any) => ({
+        id: model.id,
+        name: model.name,
+        baseUrl: model.baseUrl,
+        apiKey: model.apiKey,
+        parameters: {
+          topK: model.topK,
+          topP: model.topP,
+          temperature: model.temperature
+        },
+        isDefault: model.isDefault || false,
+        createdAt: new Date(model.createdAt)
+      }));
       setModels(savedModels);
     }
   }, [userInfo]);
@@ -79,43 +90,59 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
 
   const handleDeleteModel = async (modelId: string) => {
     if (!confirm('确定要删除这个模型配置吗？')) return;
+    if (!user) return;
 
     try {
       setLoading(true);
+      
+      // 调用数据库删除操作
+      const { userInfo: updatedUserInfo } = await authService.deleteCustomModel(user.id, modelId);
+      
+      // 更新本地状态
       const updatedModels = models.filter(m => m.id !== modelId);
       setModels(updatedModels);
       
-      // Update userInfo with new models list
-      // You would implement the actual storage logic here
-      
       showNotification('success', '模型配置已删除');
+      
+      // 如果删除的是默认模型且还有其他模型，更新本地状态
+      if (updatedModels.length > 0) {
+        const newDefaultModel = updatedModels.find(m => m.isDefault);
+        if (!newDefaultModel && updatedModels.length > 0) {
+          // 如果没有默认模型了，设置第一个为默认
+          setModels(prev => prev.map((m, index) => ({
+            ...m,
+            isDefault: index === 0
+          })));
+        }
+      }
     } catch (error) {
       console.error('Delete model error:', error);
-      showNotification('error', '删除失败，请稍后重试');
+      showNotification('error', error instanceof Error ? error.message : '删除失败，请稍后重试');
     } finally {
       setLoading(false);
     }
   };
 
   const handleSetDefault = async (modelId: string) => {
+    if (!user) return;
+    
     try {
       setLoading(true);
+      
+      // 调用数据库设置默认模型操作
+      await authService.setDefaultModel(user.id, modelId);
+      
+      // 更新本地状态
       const updatedModels = models.map(m => ({
         ...m,
         isDefault: m.id === modelId
       }));
       setModels(updatedModels);
       
-      // Update userInfo with default model
-      await updateUserInfo({
-        model_id: parseInt(modelId),
-        model_name: models.find(m => m.id === modelId)?.name
-      });
-      
       showNotification('success', '默认模型已更新');
     } catch (error) {
       console.error('Set default model error:', error);
-      showNotification('error', '设置失败，请稍后重试');
+      showNotification('error', error instanceof Error ? error.message : '设置失败，请稍后重试');
     } finally {
       setLoading(false);
     }
@@ -297,21 +324,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
             model={editingModel}
             onSave={(modelData) => {
               if (editingModel) {
-                // Update existing model
-                setModels(prev => prev.map(m => 
-                  m.id === editingModel.id ? { ...modelData, id: editingModel.id } : m
-                ));
-                showNotification('success', '模型配置已更新');
+                // 更新现有模型
+                handleUpdateModel(editingModel.id, modelData);
               } else {
-                // Add new model
-                const newModel: ModelConfig = {
-                  ...modelData,
-                  id: Date.now().toString(),
-                  createdAt: new Date(),
-                  isDefault: models.length === 0
-                };
-                setModels(prev => [...prev, newModel]);
-                showNotification('success', '模型配置已添加');
+                // 添加新模型
+                handleSaveModel(modelData);
               }
               setShowAddModal(false);
             }}
@@ -322,6 +339,87 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       </AnimatePresence>
     </motion.div>
   );
+
+  // 处理保存新模型
+  const handleSaveModel = async (modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      // 调用数据库添加操作
+      const { model: newModel } = await authService.addCustomModel(user.id, {
+        name: modelData.name,
+        baseUrl: modelData.baseUrl,
+        apiKey: modelData.apiKey,
+        topK: modelData.parameters.topK,
+        topP: modelData.parameters.topP,
+        temperature: modelData.parameters.temperature
+      });
+      
+      // 更新本地状态
+      const newModelConfig: ModelConfig = {
+        id: newModel.id,
+        name: newModel.name,
+        baseUrl: newModel.baseUrl,
+        apiKey: newModel.apiKey,
+        parameters: {
+          topK: newModel.topK,
+          topP: newModel.topP,
+          temperature: newModel.temperature
+        },
+        isDefault: newModel.isDefault,
+        createdAt: new Date(newModel.createdAt)
+      };
+      
+      setModels(prev => [...prev, newModelConfig]);
+      showNotification('success', '模型配置已添加');
+    } catch (error) {
+      console.error('Save model error:', error);
+      showNotification('error', error instanceof Error ? error.message : '保存失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // 处理更新现有模型
+  const handleUpdateModel = async (modelId: string, modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      
+      // 调用数据库更新操作
+      await authService.updateCustomModel(user.id, modelId, {
+        name: modelData.name,
+        baseUrl: modelData.baseUrl,
+        apiKey: modelData.apiKey,
+        topK: modelData.parameters.topK,
+        topP: modelData.parameters.topP,
+        temperature: modelData.parameters.temperature
+      });
+      
+      // 更新本地状态
+      setModels(prev => prev.map(m => 
+        m.id === modelId 
+          ? {
+              ...m,
+              name: modelData.name,
+              baseUrl: modelData.baseUrl,
+              apiKey: modelData.apiKey,
+              parameters: modelData.parameters
+            }
+          : m
+      ));
+      
+      showNotification('success', '模型配置已更新');
+    } catch (error) {
+      console.error('Update model error:', error);
+      showNotification('error', error instanceof Error ? error.message : '更新失败，请稍后重试');
+    } finally {
+      setLoading(false);
+    }
+  };
 };
 
 interface ModelConfigModalProps {

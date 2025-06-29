@@ -90,6 +90,7 @@ export interface UserInfo {
   language?: string
   timezone?: string
   custom_models?: any[]
+  default_model_id?: string
 }
 
 // 动物头像emoji数组
@@ -328,6 +329,311 @@ export const authService = {
       return data
     } catch (error) {
       console.error('💥 更新用户信息出错:', error)
+      throw error
+    }
+  },
+
+  // 添加自定义模型配置
+  async addCustomModel(userId: string, modelConfig: {
+    name: string
+    baseUrl: string
+    apiKey: string
+    topK: number
+    topP: number
+    temperature: number
+  }) {
+    try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Model configuration cannot be saved at this time.')
+      }
+
+      console.log('📝 添加自定义模型配置:', userId, modelConfig.name)
+
+      // 1. 生成唯一的 model_id
+      const modelId = Date.now().toString()
+
+      // 2. 检查是否已存在相同配置的模型
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('user_info')
+        .select('custom_models')
+        .eq('uuid', userId)
+        .single()
+
+      if (fetchError) {
+        console.error('❌ 获取用户信息失败:', fetchError)
+        throw fetchError
+      }
+
+      const existingModels = existingUser?.custom_models || []
+      
+      // 检查是否存在相同配置的模型
+      const duplicateModel = existingModels.find((model: any) => 
+        model.name === modelConfig.name &&
+        model.baseUrl === modelConfig.baseUrl &&
+        model.apiKey === modelConfig.apiKey &&
+        model.topK === modelConfig.topK &&
+        model.topP === modelConfig.topP &&
+        model.temperature === modelConfig.temperature
+      )
+
+      if (duplicateModel) {
+        throw new Error('模型已存在：相同配置的模型已经添加过了')
+      }
+
+      // 3. 创建新的模型配置
+      const newModel = {
+        id: modelId,
+        name: modelConfig.name.trim(),
+        baseUrl: modelConfig.baseUrl.trim(),
+        apiKey: modelConfig.apiKey.trim(),
+        topK: modelConfig.topK,
+        topP: modelConfig.topP,
+        temperature: modelConfig.temperature,
+        createdAt: new Date().toISOString(),
+        isDefault: existingModels.length === 0 // 如果是第一个模型，设为默认
+      }
+
+      // 4. 更新用户的自定义模型列表
+      const updatedModels = [...existingModels, newModel]
+      const updateData: any = {
+        custom_models: updatedModels
+      }
+
+      // 如果是第一个模型，同时设置为默认模型
+      if (existingModels.length === 0) {
+        updateData.default_model_id = modelId
+        updateData.model_id = parseInt(modelId)
+        updateData.model_name = modelConfig.name
+      }
+
+      const { data, error } = await supabase
+        .from('user_info')
+        .update(updateData)
+        .eq('uuid', userId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ 添加模型配置失败:', error)
+        throw error
+      }
+
+      console.log('✅ 模型配置添加成功:', newModel.name)
+      return { model: newModel, userInfo: data }
+    } catch (error) {
+      console.error('💥 添加模型配置出错:', error)
+      throw error
+    }
+  },
+
+  // 更新自定义模型配置
+  async updateCustomModel(userId: string, modelId: string, modelConfig: {
+    name: string
+    baseUrl: string
+    apiKey: string
+    topK: number
+    topP: number
+    temperature: number
+  }) {
+    try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Model configuration cannot be updated at this time.')
+      }
+
+      console.log('📝 更新自定义模型配置:', userId, modelId, modelConfig.name)
+
+      // 1. 获取当前用户的模型列表
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('user_info')
+        .select('custom_models')
+        .eq('uuid', userId)
+        .single()
+
+      if (fetchError) {
+        console.error('❌ 获取用户信息失败:', fetchError)
+        throw fetchError
+      }
+
+      const existingModels = existingUser?.custom_models || []
+      
+      // 2. 检查是否存在相同配置的其他模型（排除当前编辑的模型）
+      const duplicateModel = existingModels.find((model: any) => 
+        model.id !== modelId &&
+        model.name === modelConfig.name &&
+        model.baseUrl === modelConfig.baseUrl &&
+        model.apiKey === modelConfig.apiKey &&
+        model.topK === modelConfig.topK &&
+        model.topP === modelConfig.topP &&
+        model.temperature === modelConfig.temperature
+      )
+
+      if (duplicateModel) {
+        throw new Error('模型已存在：相同配置的模型已经添加过了')
+      }
+
+      // 3. 更新模型配置
+      const updatedModels = existingModels.map((model: any) => 
+        model.id === modelId 
+          ? {
+              ...model,
+              name: modelConfig.name.trim(),
+              baseUrl: modelConfig.baseUrl.trim(),
+              apiKey: modelConfig.apiKey.trim(),
+              topK: modelConfig.topK,
+              topP: modelConfig.topP,
+              temperature: modelConfig.temperature,
+              updatedAt: new Date().toISOString()
+            }
+          : model
+      )
+
+      const { data, error } = await supabase
+        .from('user_info')
+        .update({ custom_models: updatedModels })
+        .eq('uuid', userId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ 更新模型配置失败:', error)
+        throw error
+      }
+
+      console.log('✅ 模型配置更新成功:', modelConfig.name)
+      return { userInfo: data }
+    } catch (error) {
+      console.error('💥 更新模型配置出错:', error)
+      throw error
+    }
+  },
+
+  // 删除自定义模型配置
+  async deleteCustomModel(userId: string, modelId: string) {
+    try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Model configuration cannot be deleted at this time.')
+      }
+
+      console.log('🗑️ 删除自定义模型配置:', userId, modelId)
+
+      // 1. 获取当前用户的模型列表
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('user_info')
+        .select('custom_models, default_model_id')
+        .eq('uuid', userId)
+        .single()
+
+      if (fetchError) {
+        console.error('❌ 获取用户信息失败:', fetchError)
+        throw fetchError
+      }
+
+      const existingModels = existingUser?.custom_models || []
+      
+      // 2. 过滤掉要删除的模型
+      const updatedModels = existingModels.filter((model: any) => model.id !== modelId)
+      
+      const updateData: any = {
+        custom_models: updatedModels
+      }
+
+      // 3. 如果删除的是默认模型，需要重新设置默认模型
+      if (existingUser?.default_model_id === modelId) {
+        if (updatedModels.length > 0) {
+          // 设置第一个模型为默认
+          const newDefaultModel = updatedModels[0]
+          updateData.default_model_id = newDefaultModel.id
+          updateData.model_id = parseInt(newDefaultModel.id)
+          updateData.model_name = newDefaultModel.name
+          
+          // 更新模型列表中的默认标记
+          updateData.custom_models = updatedModels.map((model: any, index: number) => ({
+            ...model,
+            isDefault: index === 0
+          }))
+        } else {
+          // 没有其他模型了，清除默认模型设置
+          updateData.default_model_id = null
+          updateData.model_id = null
+          updateData.model_name = null
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('user_info')
+        .update(updateData)
+        .eq('uuid', userId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ 删除模型配置失败:', error)
+        throw error
+      }
+
+      console.log('✅ 模型配置删除成功')
+      return { userInfo: data }
+    } catch (error) {
+      console.error('💥 删除模型配置出错:', error)
+      throw error
+    }
+  },
+
+  // 设置默认模型
+  async setDefaultModel(userId: string, modelId: string) {
+    try {
+      if (!isSupabaseConnected) {
+        throw new Error('Database connection unavailable. Default model cannot be set at this time.')
+      }
+
+      console.log('⭐ 设置默认模型:', userId, modelId)
+
+      // 1. 获取当前用户的模型列表
+      const { data: existingUser, error: fetchError } = await supabase
+        .from('user_info')
+        .select('custom_models')
+        .eq('uuid', userId)
+        .single()
+
+      if (fetchError) {
+        console.error('❌ 获取用户信息失败:', fetchError)
+        throw fetchError
+      }
+
+      const existingModels = existingUser?.custom_models || []
+      const targetModel = existingModels.find((model: any) => model.id === modelId)
+      
+      if (!targetModel) {
+        throw new Error('模型不存在')
+      }
+
+      // 2. 更新模型列表中的默认标记
+      const updatedModels = existingModels.map((model: any) => ({
+        ...model,
+        isDefault: model.id === modelId
+      }))
+
+      const { data, error } = await supabase
+        .from('user_info')
+        .update({
+          custom_models: updatedModels,
+          default_model_id: modelId,
+          model_id: parseInt(modelId),
+          model_name: targetModel.name
+        })
+        .eq('uuid', userId)
+        .select()
+        .single()
+
+      if (error) {
+        console.error('❌ 设置默认模型失败:', error)
+        throw error
+      }
+
+      console.log('✅ 默认模型设置成功:', targetModel.name)
+      return { userInfo: data }
+    } catch (error) {
+      console.error('💥 设置默认模型出错:', error)
       throw error
     }
   },
