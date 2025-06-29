@@ -546,7 +546,12 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const isFormValid = 
     formData.name.trim().length > 0 &&
     formData.baseUrl.trim().length > 0 &&
-    formData.apiKey.trim().length > 0;
+    formData.apiKey.trim().length > 0 &&
+    formData.topK > 0 &&
+    formData.topP >= 0 &&
+    formData.topP <= 1 &&
+    formData.temperature >= 0 &&
+    formData.temperature <= 2;
 
   // 检查表单是否有变化
   const hasChanges = 
@@ -750,9 +755,9 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={!isFormValid || !hasChanges || modalLoading}
+            disabled={!isFormValid || modalLoading}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              !isFormValid || !hasChanges || modalLoading
+              !isFormValid || modalLoading
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
