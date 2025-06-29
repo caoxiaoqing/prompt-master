@@ -40,6 +40,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const { userInfo } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
+  const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -646,14 +647,14 @@ const MessageBubble: React.FC<{
               <div className="flex items-center space-x-2">
                 <Loader2 size={16} className="animate-spin" />
                 <span className="text-sm">
-                  {streamingMessage ? '正在回答...' : '正在思考...'}
+                  {streamingMessage.length > 0 ? '正在回答...' : '正在思考...'}
                 </span>
-                {streamingMessage && (
+              </div>
+              {streamingMessage.length > 0 && (
                   <div className="whitespace-pre-wrap text-sm leading-relaxed">
                     {streamingMessage}
                   </div>
-                )}
-              </div>
+              )}
             ) : (
               <div className="whitespace-pre-wrap text-sm leading-relaxed">
                 {message.content}
