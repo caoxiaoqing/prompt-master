@@ -25,6 +25,9 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
+import { useAuth } from '../contexts/AuthContext';
+import { useTaskPersistence } from '../hooks/useTaskPersistence';
+import { TaskService, ModelParams } from '../lib/taskService';
 import { mockModels } from '../utils/mockData';
 import { PromptVersion, ChatMessage } from '../types';
 import ChatInterface from './ChatInterface';
@@ -33,6 +36,7 @@ import { format } from 'date-fns';
 
 const PromptEditor: React.FC = () => {
   const { state, dispatch } = useApp();
+  const { user, userInfo } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1000);
@@ -43,6 +47,23 @@ const PromptEditor: React.FC = () => {
   const [currentChatHistory, setCurrentChatHistory] = useState<ChatMessage[]>([]);
   const [currentLoadedVersion, setCurrentLoadedVersion] = useState<PromptVersion | null>(null);
 
+  // 获取当前任务的模型参数
+  const getCurrentModelParams = (): ModelParams => {
+    const customModel = state.selectedCustomModel;
+    return TaskService.getDefaultModelParams(customModel);
+  };
+
+  // 使用任务持久化 hook
+  const { syncModelParams, createTask, forceSyncAll } = useTaskPersistence({
+    taskId: state.currentTask ? parseInt(state.currentTask.id) : null,
+    systemPrompt: prompt,
+    chatHistory: currentChatHistory,
+    modelParams: getCurrentModelParams(),
+    onModelParamsUpdate: (params) => {
+      // 更新状态栏显示
+      console.log('模型参数已更新:', params);
+    }
+  });
   // 当选择新任务时，更新编辑器内容
   useEffect(() => {
     if (state.currentTask) {
@@ -71,6 +92,23 @@ const PromptEditor: React.FC = () => {
         setMaxTokens(state.currentTask.maxTokens || 1000);
         setCurrentChatHistory(state.currentTask.currentChatHistory || []);
         setCurrentLoadedVersion(null);
+
+        // 如果是新任务且用户已登录，创建数据库记录
+        if (user && state.currentTask && !state.currentTask.createdInDB) {
+          const taskId = parseInt(state.currentTask.id);
+          const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
+          const defaultParams = getCurrentModelParams();
+          
+          createTask(taskId, state.currentTask.name, folderName, defaultParams)
+            .then(() => {
+              // 标记任务已在数据库中创建
+              const updatedTask = { ...state.currentTask!, createdInDB: true };
+              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+            })
+            .catch(error => {
+              console.error('创建任务数据库记录失败:', error);
+            });
+        }
       }
     } else {
       setPrompt('');
@@ -217,6 +255,19 @@ const PromptEditor: React.FC = () => {
   const handleModelSettingsChange = (newTemperature: number, newMaxTokens: number) => {
     setTemperature(newTemperature);
     setMaxTokens(newMaxTokens);
+
+    // 立即同步模型参数到数据库
+    if (state.currentTask && user) {
+      const updatedParams: ModelParams = {
+        ...getCurrentModelParams(),
+        temperature: newTemperature,
+        max_tokens: newMaxTokens
+      };
+      
+      syncModelParams(updatedParams).catch(error => {
+        console.error('同步模型参数失败:', error);
+      });
+    }
   };
 
   const copyPromptToClipboard = async () => {

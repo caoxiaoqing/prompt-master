@@ -120,6 +120,8 @@ export interface PromptTask {
   currentChatHistory?: ChatMessage[];
   // 新增：当前加载的版本ID，用于记住用户选择的历史版本
   currentLoadedVersionId?: string;
+  // 新增：标记任务是否已在数据库中创建
+  createdInDB?: boolean;
 }
 
 export interface Folder {

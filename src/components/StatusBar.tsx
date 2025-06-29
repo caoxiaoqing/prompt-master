@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
+import { TaskService } from '../lib/taskService';
 
 const StatusBar: React.FC = () => {
   const { state } = useApp();
@@ -31,6 +32,15 @@ const StatusBar: React.FC = () => {
   const hasCustomModels = userInfo?.custom_models && userInfo.custom_models.length > 0;
   const selectedCustomModel = state.selectedCustomModel;
   
+  // 获取当前任务的模型参数
+  const getCurrentModelParams = () => {
+    if (selectedCustomModel) {
+      return TaskService.getDefaultModelParams(selectedCustomModel);
+    }
+    return null;
+  };
+
+  const currentModelParams = getCurrentModelParams();
   // 如果用户没有打开任何任务文件，只显示基本信息
   if (!state.currentTask) {
     const basicStatusItems = [
@@ -255,19 +265,19 @@ const StatusBar: React.FC = () => {
     {
       icon: Hash,
       label: 'Top-K',
-      value: selectedCustomModel?.topK?.toString() || '50',
+      value: currentModelParams?.top_k?.toString() || '50',
       color: 'text-blue-600 dark:text-blue-400'
     },
     {
       icon: Zap,
       label: 'Top-P',
-      value: selectedCustomModel?.topP?.toString() || '1.0',
+      value: currentModelParams?.top_p?.toString() || '1.0',
       color: 'text-green-600 dark:text-green-400'
     },
     {
       icon: Thermometer,
       label: 'Temperature',
-      value: selectedCustomModel?.temperature?.toString() || '0.8',
+      value: currentModelParams?.temperature?.toString() || '0.7',
       color: 'text-yellow-600 dark:text-yellow-400'
     }
   ];

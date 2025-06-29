@@ -18,7 +18,7 @@ import {
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
-import { DatabaseService } from '../lib/database';
+import { TaskService } from '../lib/taskService';
 import { Folder as FolderType, PromptTask, ProjectData } from '../types';
 
 const FolderSidebar: React.FC = () => {
@@ -78,29 +78,15 @@ const FolderSidebar: React.FC = () => {
       updatedAt: new Date(),
       tags: [],
       notes: '',
-      versions: []
+      versions: [],
+      createdInDB: false // 标记为未在数据库中创建
     };
     
     dispatch({ type: 'ADD_TASK', payload: newTask });
     dispatch({ type: 'SET_CURRENT_TASK', payload: newTask });
     setShowCreateTask(null);
 
-    // 🔄 实时记录任务操作到数据库
-    if (user) {
-      try {
-        await DatabaseService.recordTaskOperation({
-          type: 'create',
-          taskId: newTask.id,
-          taskName: newTask.name,
-          taskContent: newTask.content,
-          folderId: newTask.folderId,
-          userId: user.id
-        });
-        console.log('✅ 任务创建操作已记录到数据库');
-      } catch (error) {
-        console.error('❌ 记录任务创建操作失败:', error);
-      }
-    }
+    // 数据库记录将在 PromptEditor 中处理
   };
 
   const handleDeleteFolder = async (folderId: string) => {
@@ -133,16 +119,10 @@ const FolderSidebar: React.FC = () => {
       
       dispatch({ type: 'DELETE_TASK', payload: taskId });
 
-      // 🔄 实时记录任务删除操作到数据库
-      if (user && task) {
+      // 如果任务已在数据库中创建，则删除数据库记录
+      if (user && task && task.createdInDB) {
         try {
-          await DatabaseService.recordTaskOperation({
-            type: 'delete',
-            taskId: task.id,
-            taskName: task.name,
-            folderId: task.folderId,
-            userId: user.id
-          });
+          await TaskService.deleteTask(user.id, parseInt(task.id));
           console.log('✅ 任务删除操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录任务删除操作失败:', error);
@@ -181,16 +161,10 @@ const FolderSidebar: React.FC = () => {
       const updatedTask = { ...task, name: newName, updatedAt: new Date() };
       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
 
-      // 🔄 实时记录任务重命名操作到数据库
-      if (user) {
+      // 如果任务已在数据库中创建，则更新数据库记录
+      if (user && task.createdInDB) {
         try {
-          await DatabaseService.recordTaskOperation({
-            type: 'update',
-            taskId: task.id,
-            taskName: newName,
-            folderId: task.folderId,
-            userId: user.id
-          });
+          await TaskService.updateTaskName(user.id, parseInt(task.id), newName);
           console.log('✅ 任务重命名操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录任务重命名操作失败:', error);
