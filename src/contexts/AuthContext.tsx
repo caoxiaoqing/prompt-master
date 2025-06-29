@@ -201,11 +201,14 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       
       try {
         console.log('🔄 刷新用户信息...')
+        setLoading(true)
         const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
         setUserInfo(refreshedUserInfo)
         console.log('✅ 用户信息刷新成功')
       } catch (error) {
         console.error('❌ 刷新用户信息失败:', error)
+      } finally {
+        setLoading(false)
       }
     }
 

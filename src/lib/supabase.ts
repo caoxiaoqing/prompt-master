@@ -530,7 +530,7 @@ export const authService = {
       // 1. 获取当前用户的模型列表
       const { data: existingUser, error: fetchError } = await supabase
         .from('user_info')
-        .select('custom_models, default_model_id')
+        .select('custom_models')
         .eq('uuid', userId)
         .single()
 
@@ -541,23 +541,37 @@ export const authService = {
 
       const existingModels = existingUser?.custom_models || []
       
+      console.log('📋 删除前的模型列表:', existingModels.length, '个模型')
+      
+      // 检查要删除的模型是否存在
+      const targetModel = existingModels.find((model: any) => model.id === modelId)
+      if (!targetModel) {
+        throw new Error('要删除的模型不存在')
+      }
+      
+      console.log('🎯 找到目标模型:', targetModel.name)
+      
       // 2. 过滤掉要删除的模型
       const updatedModels = existingModels.filter((model: any) => model.id !== modelId)
+      
+      console.log('📋 删除后的模型列表:', updatedModels.length, '个模型')
       
       const updateData = {
         custom_models: updatedModels
       }
 
       // 3. 如果删除的是默认模型，需要重新设置默认模型
-      const deletedModel = existingModels.find((model: any) => model.id === modelId)
-      if (deletedModel?.isDefault && updatedModels.length > 0) {
+      if (targetModel.isDefault && updatedModels.length > 0) {
+        console.log('🔄 重新设置默认模型')
         // 设置第一个模型为默认
         updateData.custom_models = updatedModels.map((model: any, index: number) => ({
           ...model,
           isDefault: index === 0
         }))
+        console.log('✅ 新的默认模型:', updateData.custom_models[0]?.name)
       }
 
+      console.log('💾 开始更新数据库...')
       const { data, error } = await supabase
         .from('user_info')
         .update(updateData)
@@ -570,10 +584,7 @@ export const authService = {
         throw error
       }
 
-      console.log('✅ 模型配置删除成功')
-      
-      // 强制刷新用户信息以获取最新的 custom_models 数据
-      const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
+      console.log('✅ 模型配置删除成功，数据库已更新')
       
       return { userInfo: data }
     } catch (error) {
