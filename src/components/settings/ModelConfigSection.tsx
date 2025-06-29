@@ -128,21 +128,27 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     }
   };
 
-      await authService.deleteCustomModel(user.id, modelId);
-      
-      console.log('✅ 数据库删除成功');
+  const handleSetDefault = async (modelId: string) => {
     if (!user) return;
     
     try {
       setLoading(true);
-      
-      console.log('✅ 本地状态更新成功，剩余模型数量:', updatedModels.length);
       
       // 调用数据库设置默认模型操作
       await authService.setDefaultModel(user.id, modelId);
       
       // 更新本地状态
       const updatedModels = models.map(m => ({
+        ...m,
+        isDefault: m.id === modelId
+      }));
+      
+      setModels(updatedModels);
+      
+      showNotification('success', '默认模型设置成功');
+      
+      // 刷新用户信息以获取最新数据
+      refreshUserInfo();
     } catch (error) {
       console.error('Set default model error:', error);
       showNotification('error', error instanceof Error ? error.message : '设置失败，请稍后重试');
