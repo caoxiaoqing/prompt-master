@@ -64,6 +64,7 @@ const PromptEditor: React.FC = () => {
       console.log('模型参数已更新:', params);
     }
   });
+
   // 当选择新任务时，更新编辑器内容
   useEffect(() => {
     if (state.currentTask) {
@@ -71,7 +72,7 @@ const PromptEditor: React.FC = () => {
         taskId: state.currentTask.id,
         taskName: state.currentTask.name,
         createdInDB: state.currentTask.createdInDB
-      })
+      });
       
       // 关键修复：检查任务是否有记录的加载版本
       const loadedVersionId = state.currentTask.currentLoadedVersionId;
@@ -105,12 +106,12 @@ const PromptEditor: React.FC = () => {
             taskId: state.currentTask.id,
             taskName: state.currentTask.name,
             hasUser: !!user
-          })
+          });
           
           // 获取默认模型参数
-          const defaultModel = userInfo.custom_models.find((model: any) => model.isDefault) || userInfo.custom_models[0]
+          const defaultModel = userInfo.custom_models.find((model: any) => model.isDefault) || userInfo.custom_models[0];
           if (defaultModel && user) {
-            const defaultModelParams = TaskService.getDefaultModelParams(defaultModel)
+            const defaultModelParams = TaskService.getDefaultModelParams(defaultModel);
             
             // 异步创建数据库记录
             createTask(
@@ -119,17 +120,17 @@ const PromptEditor: React.FC = () => {
               state.folders.find(f => f.id === state.currentTask.folderId)?.name || '默认文件夹',
               defaultModelParams
             ).then(() => {
-              console.log('✅ 任务数据库记录创建成功，更新本地状态')
+              console.log('✅ 任务数据库记录创建成功，更新本地状态');
               // 更新任务状态，标记为已在数据库中创建
               const updatedTask = {
                 ...state.currentTask!,
                 createdInDB: true
-              }
-              dispatch({ type: 'UPDATE_TASK', payload: updatedTask })
+              };
+              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
             }).catch((error) => {
-              console.error('❌ 创建任务数据库记录失败:', error)
+              console.error('❌ 创建任务数据库记录失败:', error);
               // 不阻断用户操作，只记录错误
-            })
+            });
           }
         }
 
@@ -139,7 +140,7 @@ const PromptEditor: React.FC = () => {
             taskId: state.currentTask.id,
             taskName: state.currentTask.name,
             hasUser: !!user
-          })
+          });
           
           const taskId = parseInt(state.currentTask.id);
           const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
@@ -147,7 +148,7 @@ const PromptEditor: React.FC = () => {
           
           createTask(taskId, state.currentTask.name, folderName, defaultParams)
             .then(() => {
-              console.log('✅ 任务数据库记录创建成功，更新本地状态')
+              console.log('✅ 任务数据库记录创建成功，更新本地状态');
               // 标记任务已在数据库中创建
               const updatedTask = { ...state.currentTask!, createdInDB: true };
               dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
@@ -165,6 +166,7 @@ const PromptEditor: React.FC = () => {
       setCurrentChatHistory([]);
       setCurrentLoadedVersion(null);
     }
+  }, [state.currentTask, dispatch, user, userInfo, createTask]);
 
   // 自动保存当前任务的内容 - 添加防抖和条件检查
   useEffect(() => {
@@ -309,7 +311,7 @@ const PromptEditor: React.FC = () => {
         taskId: state.currentTask.id,
         newTemperature,
         newMaxTokens
-      })
+      });
       
       const updatedParams: ModelParams = {
         ...getCurrentModelParams(),
@@ -686,644 +688,6 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
         )}
       </AnimatePresence>
     </div>
-  );
-};
-
-const SaveVersionModal: React.FC<{
-  currentVersionCount: number;
-  currentChatHistory: ChatMessage[];
-  baseVersionName?: string;
-  onSave: (data: { name: string; notes: string; tags: string[] }) => void;
-  onClose: () => void;
-}> = ({ currentVersionCount, currentChatHistory, baseVersionName, onSave, onClose }) => {
-  const [versionName, setVersionName] = useState(
-    baseVersionName 
-      ? `${baseVersionName} - 修改版 ${currentVersionCount + 1}`
-      : `Version ${currentVersionCount + 1}`
-  );
-  const [notes, setNotes] = useState('');
-  const [tagInput, setTagInput] = useState('');
-  const [tags, setTags] = useState<string[]>([]);
-
-  const handleAddTag = () => {
-    const trimmedTag = tagInput.trim();
-    if (trimmedTag && !tags.includes(trimmedTag)) {
-      setTags([...tags, trimmedTag]);
-      setTagInput('');
-    }
-  };
-
-  const handleRemoveTag = (tagToRemove: string) => {
-    setTags(tags.filter(tag => tag !== tagToRemove));
-  };
-
-  const handleTagInputKeyPress = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      handleAddTag();
-    }
-  };
-
-  const handleSave = () => {
-    if (!versionName.trim()) return;
-    
-    onSave({
-      name: versionName.trim(),
-      notes: notes.trim(),
-      tags
-    });
-  };
-
-  const quickTags = ['优化', '修复', '重构', '实验', '稳定版', '测试'];
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-backdrop"
-      onClick={onClose}
-      style={{
-        // 确保模态框在最上层
-        zIndex: 100000,
-        // 确保模态框不会影响页面布局
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        // 防止模态框影响页面滚动
-        overflow: 'hidden',
-        // 确保模态框不会影响其他元素
-        contain: 'layout'
-      }}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 flex flex-col"
-        style={{ 
-          maxHeight: '90vh',
-          // 确保模态框内容也在正确的层级
-          zIndex: 100001,
-          position: 'relative'
-        }}
-      >
-        {/* Header - 固定不滚动 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-green-100 dark:bg-green-900/20 rounded-lg">
-              <GitBranch size={20} className="text-green-600 dark:text-green-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                保存新版本
-              </h2>
-              <p className="text-sm text-gray-500">
-                {baseVersionName ? `基于现有版本创建新版本` : `为这个版本添加描述信息和标签`}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content - 可滚动区域 */}
-        <div className="flex-1 overflow-y-auto">
-          <div className="p-6 space-y-6">
-            {/* Base Version Info */}
-            {baseVersionName && (
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center space-x-2 mb-2">
-                  <GitBranch size={16} className="text-blue-600 dark:text-blue-400" />
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100">
-                    基于现有版本
-                  </h4>
-                </div>
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  这个新版本将基于已加载的版本创建，包含当前的所有修改。
-                </p>
-              </div>
-            )}
-
-            {/* Chat History Info */}
-            {currentChatHistory.length > 0 && (
-              <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                <div className="flex items-center space-x-2 mb-2">
-                  <MessageSquare size={16} className="text-blue-600 dark:text-blue-400" />
-                  <h4 className="font-medium text-blue-900 dark:text-blue-100">
-                    聊天记录将被保存
-                  </h4>
-                </div>
-                <p className="text-sm text-blue-800 dark:text-blue-200">
-                  当前有 {currentChatHistory.length} 条聊天记录将随版本一起保存，
-                  包括用户消息和AI回复。加载此版本时将恢复完整的对话历史。
-                </p>
-              </div>
-            )}
-
-            {/* Version Name */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                版本名称 *
-              </label>
-              <div className="relative">
-                <Edit3 size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={versionName}
-                  onChange={(e) => setVersionName(e.target.value)}
-                  placeholder="输入版本名称..."
-                  className="w-full pl-10 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  autoFocus
-                />
-              </div>
-              <p className="text-xs text-gray-500">
-                建议使用描述性的名称，如 "优化对话逻辑" 或 "添加专业术语支持"
-              </p>
-            </div>
-
-            {/* Change Notes */}
-            <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                版本改动说明
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="描述这个版本的主要改动和优化点...
-
-例如：
-- 优化了回答的逻辑结构
-- 增加了对专业术语的处理
-- 改进了多轮对话的连贯性"
-                rows={4}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none"
-              />
-              <p className="text-xs text-gray-500">
-                详细的改动说明有助于后续版本管理和回溯
-              </p>
-            </div>
-
-            {/* Tags */}
-            <div className="space-y-3">
-              <label className="block text-sm font-medium text-gray-900 dark:text-white">
-                版本标签
-              </label>
-              
-              {/* Tag Input */}
-              <div className="flex space-x-2">
-                <div className="relative flex-1">
-                  <Tag size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type="text"
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyPress={handleTagInputKeyPress}
-                    placeholder="输入标签..."
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                <button
-                  onClick={handleAddTag}
-                  disabled={!tagInput.trim()}
-                  className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  添加
-                </button>
-              </div>
-
-              {/* Quick Tags */}
-              <div className="space-y-2">
-                <p className="text-xs text-gray-500">快速标签:</p>
-                <div className="flex flex-wrap gap-2">
-                  {quickTags.map((quickTag) => (
-                    <button
-                      key={quickTag}
-                      onClick={() => {
-                        if (!tags.includes(quickTag)) {
-                          setTags([...tags, quickTag]);
-                        }
-                      }}
-                      disabled={tags.includes(quickTag)}
-                      className="px-3 py-1 text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                    >
-                      {quickTag}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Current Tags */}
-              {tags.length > 0 && (
-                <div className="space-y-2">
-                  <p className="text-xs text-gray-500">已添加的标签:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {tags.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex items-center space-x-1 px-3 py-1 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded-full text-sm"
-                      >
-                        <span>{tag}</span>
-                        <button
-                          onClick={() => handleRemoveTag(tag)}
-                          className="hover:bg-green-200 dark:hover:bg-green-800 rounded-full p-0.5 transition-colors"
-                        >
-                          <X size={12} />
-                        </button>
-                      </span>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Preview */}
-            <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
-              <h4 className="text-sm font-medium text-gray-900 dark:text-white mb-2">
-                版本预览
-              </h4>
-              <div className="space-y-2 text-sm">
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">名称:</span>
-                  <span className="font-medium">{versionName || '未命名版本'}</span>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <span className="text-gray-500">时间:</span>
-                  <span>{new Date().toLocaleString()}</span>
-                </div>
-                {currentChatHistory.length > 0 && (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-gray-500">聊天记录:</span>
-                    <span className="text-blue-600 dark:text-blue-400">{currentChatHistory.length} 条消息</span>
-                  </div>
-                )}
-                {tags.length > 0 && (
-                  <div className="flex items-start space-x-2">
-                    <span className="text-gray-500">标签:</span>
-                    <div className="flex flex-wrap gap-1">
-                      {tags.map((tag) => (
-                        <span
-                          key={tag}
-                          className="px-2 py-0.5 bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300 rounded text-xs"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer - 固定不滚动 */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="text-sm text-gray-500">
-            这将是第 {currentVersionCount + 1} 个版本
-          </div>
-          
-          <div className="flex items-center space-x-3">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-            >
-              取消
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!versionName.trim()}
-              className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              <Save size={16} />
-              <span>保存版本</span>
-            </button>
-          </div>
-        </div>
-      </motion.div>
-    </motion.div>
-  );
-};
-
-const VersionHistoryModal: React.FC<{
-  versions: PromptVersion[];
-  currentLoadedVersion: PromptVersion | null;
-  onClose: () => void;
-  onSelectVersion: (version: PromptVersion) => void;
-}> = ({ versions, currentLoadedVersion, onClose, onSelectVersion }) => {
-  const getQualityColor = (quality?: number) => {
-    if (!quality) return 'text-gray-400';
-    if (quality >= 8.5) return 'text-green-600 dark:text-green-400';
-    if (quality >= 7.0) return 'text-yellow-600 dark:text-yellow-400';
-    return 'text-red-600 dark:text-red-400';
-  };
-
-  const getQualityBadge = (quality?: number) => {
-    if (!quality) return null;
-    let label = '';
-    let bgColor = '';
-    
-    if (quality >= 8.5) {
-      label = '优秀';
-      bgColor = 'bg-green-100 dark:bg-green-900/20 text-green-700 dark:text-green-300';
-    } else if (quality >= 7.0) {
-      label = '良好';
-      bgColor = 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300';
-    } else {
-      label = '待优化';
-      bgColor = 'bg-red-100 dark:bg-red-900/20 text-red-700 dark:text-red-300';
-    }
-
-    return (
-      <span className={`px-2 py-1 text-xs rounded-full ${bgColor}`}>
-        {label}
-      </span>
-    );
-  };
-
-  const handleVersionClick = (version: PromptVersion, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    console.log('Loading version:', version.name); // 调试日志
-    onSelectVersion(version);
-  };
-
-  return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 modal-backdrop"
-      onClick={onClose}
-      style={{
-        // 确保模态框在最上层
-        zIndex: 100000,
-        // 确保模态框不会影响页面布局
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        // 防止模态框影响页面滚动
-        overflow: 'hidden',
-        // 确保模态框不会影响其他元素
-        contain: 'layout'
-      }}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl border border-gray-200 dark:border-gray-700 flex flex-col"
-        style={{ 
-          height: '80vh',
-          // 确保模态框内容也在正确的层级
-          zIndex: 100001,
-          position: 'relative'
-        }}
-      >
-        {/* Header - 固定不滚动 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="flex items-center space-x-3">
-            <div className="p-2 bg-purple-100 dark:bg-purple-900/20 rounded-lg">
-              <History size={20} className="text-purple-600 dark:text-purple-400" />
-            </div>
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                历史版本
-              </h2>
-              <p className="text-sm text-gray-500">
-                选择一个版本来加载其内容、设置和聊天记录
-                {currentLoadedVersion && (
-                  <span className="text-blue-600 dark:text-blue-400 ml-2">
-                    (当前: {currentLoadedVersion.name})
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <X size={18} />
-          </button>
-        </div>
-
-        {/* Content - 可滚动区域 */}
-        <div className="flex-1 overflow-hidden">
-          {versions.length === 0 ? (
-            <div className="flex items-center justify-center h-full text-gray-500">
-              <div className="text-center">
-                <History size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">暂无历史版本</p>
-                <p className="text-sm">保存第一个版本来开始版本管理</p>
-              </div>
-            </div>
-          ) : (
-            <div className="h-full overflow-y-auto">
-              <div className="p-6">
-                <div className="grid gap-4">
-                  {versions.map((version, index) => {
-                    const isCurrentLoaded = currentLoadedVersion?.id === version.id;
-                    
-                    return (
-                      <motion.div
-                        key={version.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        onClick={(e) => handleVersionClick(version, e)}
-                        className={`group p-4 border rounded-lg cursor-pointer transition-all duration-200 ${
-                          isCurrentLoaded
-                            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-2 ring-blue-200 dark:ring-blue-800'
-                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-300 dark:hover:border-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/10'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between mb-3">
-                          <div className="flex items-center space-x-3">
-                            <div className="flex items-center space-x-2">
-                              <h3 className={`font-medium transition-colors ${
-                                isCurrentLoaded
-                                  ? 'text-blue-700 dark:text-blue-300'
-                                  : 'text-gray-900 dark:text-white group-hover:text-blue-600 dark:group-hover:text-blue-400'
-                              }`}>
-                                {version.name}
-                              </h3>
-                              {isCurrentLoaded && (
-                                <span className="inline-flex items-center px-2 py-1 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded-full text-xs font-medium">
-                                  当前加载
-                                </span>
-                              )}
-                              {version.metrics && getQualityBadge(version.metrics.quality)}
-                              {version.chatHistory && version.chatHistory.length > 0 && (
-                                <span className="inline-flex items-center space-x-1 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs">
-                                  <MessageSquare size={10} />
-                                  <span>{version.chatHistory.length} 条聊天</span>
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <ChevronRight size={16} className={`transition-colors ${
-                            isCurrentLoaded
-                              ? 'text-blue-500'
-                              : 'text-gray-400 group-hover:text-blue-500'
-                          }`} />
-                        </div>
-
-                        {/* Version Info */}
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-3 text-sm">
-                          <div className="flex items-center space-x-2">
-                            <Clock size={12} className="text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              {format(version.timestamp, 'MM/dd HH:mm')}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <User size={12} className="text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              {version.model}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Settings size={12} className="text-gray-400" />
-                            <span className="text-gray-600 dark:text-gray-400">
-                              T:{version.temperature} / {version.maxTokens}
-                            </span>
-                          </div>
-                          {version.metrics && (
-                            <div className="flex items-center space-x-2">
-                              <BarChart3 size={12} className={getQualityColor(version.metrics.quality)} />
-                              <span className={`font-medium ${getQualityColor(version.metrics.quality)}`}>
-                                {version.metrics.quality.toFixed(1)}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-
-                        {/* Content Preview */}
-                        <div className="bg-gray-50 dark:bg-gray-700 p-3 rounded border">
-                          <p className="text-sm text-gray-700 dark:text-gray-300 line-clamp-2 font-mono">
-                            {version.content || '无内容'}
-                          </p>
-                        </div>
-
-                        {/* Chat History Preview */}
-                        {version.chatHistory && version.chatHistory.length > 0 && (
-                          <div className="mt-3 p-3 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800">
-                            <div className="flex items-center space-x-2 mb-2">
-                              <Bot size={12} className="text-blue-600 dark:text-blue-400" />
-                              <span className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                                聊天记录预览
-                              </span>
-                            </div>
-                            <div className="space-y-1 text-xs">
-                              {version.chatHistory.slice(0, 2).map((msg, idx) => (
-                                <div key={idx} className="flex items-start space-x-2">
-                                  <span className={`font-medium ${
-                                    msg.role === 'user' ? 'text-blue-700 dark:text-blue-300' : 'text-green-700 dark:text-green-300'
-                                  }`}>
-                                    {msg.role === 'user' ? '用户:' : 'AI:'}
-                                  </span>
-                                  <span className="text-blue-800 dark:text-blue-200 line-clamp-1">
-                                    {msg.content}
-                                  </span>
-                                </div>
-                              ))}
-                              {version.chatHistory.length > 2 && (
-                                <div className="text-blue-600 dark:text-blue-400 text-center">
-                                  还有 {version.chatHistory.length - 2} 条消息...
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Tags */}
-                        {version.tags && version.tags.length > 0 && (
-                          <div className="flex items-center space-x-2 mt-3">
-                            <Tag size={12} className="text-gray-400" />
-                            <div className="flex flex-wrap gap-1">
-                              {version.tags.map((tag) => (
-                                <span
-                                  key={tag}
-                                  className="px-2 py-1 text-xs bg-gray-100 dark:bg-gray-600 text-gray-600 dark:text-gray-300 rounded-full"
-                                >
-                                  {tag}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Notes */}
-                        {version.notes && (
-                          <div className="mt-3 p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded">
-                            <p className="text-sm text-yellow-800 dark:text-yellow-200">
-                              <strong>备注:</strong> {version.notes}
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Performance Metrics */}
-                        {version.metrics && (
-                          <div className="mt-3 grid grid-cols-3 gap-3 text-xs">
-                            <div className="text-center p-2 bg-white dark:bg-gray-800 rounded border">
-                              <div className="font-medium text-gray-900 dark:text-white">
-                                {version.metrics.quality.toFixed(1)}
-                              </div>
-                              <div className="text-gray-500">质量</div>
-                            </div>
-                            <div className="text-center p-2 bg-white dark:bg-gray-800 rounded border">
-                              <div className="font-medium text-gray-900 dark:text-white">
-                                {version.metrics.coherence.toFixed(1)}
-                              </div>
-                              <div className="text-gray-500">连贯性</div>
-                            </div>
-                            <div className="text-center p-2 bg-white dark:bg-gray-800 rounded border">
-                              <div className="font-medium text-gray-900 dark:text-white">
-                                {version.metrics.relevance.toFixed(1)}
-                              </div>
-                              <div className="text-gray-500">相关性</div>
-                            </div>
-                          </div>
-                        )}
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Footer - 固定不滚动 */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <div className="text-sm text-gray-500">
-            共 {versions.length} 个版本
-            {currentLoadedVersion && (
-              <span className="text-blue-600 dark:text-blue-400 ml-2">
-                • 当前加载: {currentLoadedVersion.name}
-              </span>
-            )}
-          </div>
-          <button
-            onClick={onClose}
-            className="px-4 py-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
-          >
-            关闭
-          </button>
-        </div>
-      </motion.div>
-    </motion.div>
   );
 };
 
