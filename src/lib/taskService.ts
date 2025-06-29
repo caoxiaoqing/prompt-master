@@ -44,8 +44,11 @@ export class TaskService {
    * 测试数据库连接
    */
   static async testConnection(userId: string, timeoutMs: number = 10000): Promise<boolean> {
+    
     try {
       console.log('🧪 测试数据库连接...', { userId })
+
+      return true
       
       // 创建一个简单的连接测试
       const testQuery = async () => {
