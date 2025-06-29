@@ -75,37 +75,6 @@ export class TaskService {
         model_params: defaultModelParams
       }
 
-      console.log('🔍 检查任务是否已存在...')
-      
-      // 检查任务是否已存在（使用 task_id 检查，因为它是唯一的）
-      const { data: existingTasks, error: checkError } = await supabase
-        .from('task_info')
-        .select('task_id, task_name')
-        .eq('task_id', taskId)
-        .limit(1)
-
-      if (checkError) {
-        console.error('❌ 检查任务是否存在失败:', checkError)
-        throw checkError
-      }
-
-      if (existingTasks && existingTasks.length > 0) {
-        console.log('ℹ️ 任务已存在，跳过创建:', { taskId, taskName: existingTasks[0].task_name })
-        // 返回现有任务的完整信息
-        const { data: fullTask, error: fetchError } = await supabase
-          .from('task_info')
-          .select('*')
-          .eq('task_id', taskId)
-          .single()
-        
-        if (fetchError) {
-          console.error('❌ 获取现有任务详情失败:', fetchError)
-          throw fetchError
-        }
-        
-        return fullTask
-      }
-
       console.log('📋 准备插入的数据:', taskData)
       const { data, error } = await supabase
         .from('task_info')
