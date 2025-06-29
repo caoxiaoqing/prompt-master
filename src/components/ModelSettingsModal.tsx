@@ -33,7 +33,7 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
   const [localTemperature, setLocalTemperature] = useState(temperature);
   const [localMaxTokens, setLocalMaxTokens] = useState(maxTokens);
   const [localTopK, setLocalTopK] = useState(topK);
-  const [localTopP, setLocalTopP] = useState(topP);
+  const [localTopP, setLocalTopP] = useState(topP || 1.0);
 
   const currentModel = selectedModel;
 
@@ -118,8 +118,9 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Hash size={16} className="text-purple-600 dark:text-purple-400" />
-                <label className="font-medium text-gray-900 dark:text-white">
+                <label className="font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                   Top-K
+                  <span className="text-xs text-gray-500 dark:text-gray-400">(可选)</span>
                 </label>
               </div>
               <span className="text-sm font-mono px-2 py-1 rounded text-purple-600 dark:text-purple-400 bg-gray-100 dark:bg-gray-700">
@@ -163,8 +164,9 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Hash size={16} className="text-green-600 dark:text-green-400" />
-                <label className="font-medium text-gray-900 dark:text-white">
+                <label className="font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                   Top-P
+                  <span className="text-xs text-gray-500 dark:text-gray-400">(可选)</span>
                 </label>
               </div>
               <span className="text-sm font-mono px-2 py-1 rounded text-green-600 dark:text-green-400 bg-gray-100 dark:bg-gray-700">
@@ -208,8 +210,9 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Thermometer size={16} className="text-orange-600 dark:text-orange-400" />
-                <label className="font-medium text-gray-900 dark:text-white">
+                <label className="font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                   Temperature
+                  <span className="text-xs text-gray-500 dark:text-gray-400">(必填)</span>
                 </label>
               </div>
               <span className={`text-sm font-mono px-2 py-1 rounded ${getTemperatureColor(localTemperature)} bg-gray-100 dark:bg-gray-700`}>
@@ -252,8 +255,9 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2">
                 <Hash size={16} className="text-purple-600 dark:text-purple-400" />
-                <label className="font-medium text-gray-900 dark:text-white">
+                <label className="font-medium text-gray-900 dark:text-white flex items-center space-x-2">
                   Max Tokens
+                  <span className="text-xs text-gray-500 dark:text-gray-400">(必填)</span>
                 </label>
               </div>
               <span className="text-sm font-mono px-2 py-1 rounded text-purple-600 dark:text-purple-400 bg-gray-100 dark:bg-gray-700">
@@ -304,8 +308,8 @@ const ModelSettingsModal: React.FC<ModelSettingsModalProps> = ({
                 <span className="font-mono">{currentModel.name}</span>
               </div>
               <div className="flex justify-between">
-                <span>Base URL:</span>
-                <span className="font-mono text-xs">{currentModel.baseUrl}</span>
+                <span>API 端点:</span>
+                <span className="font-mono text-xs truncate max-w-48">{currentModel.baseUrl}</span>
               </div>
               <div className="flex justify-between">
                 <span>创建时间:</span>

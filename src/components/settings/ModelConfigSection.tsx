@@ -53,6 +53,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
   const [showApiKey, setShowApiKey] = useState<{ [key: string]: boolean }>({});
+  const [testingModel, setTestingModel] = useState<string | null>(null);
+  const [testResult, setTestResult] = useState<{id: string, success: boolean, message: string} | null>(null);
 
   // Load models from userInfo on component mount
   useEffect(() => {
@@ -148,6 +150,79 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       console.log('❌ 删除失败，保持本地状态不变');
     } finally {
       setLoading(false);
+    }
+  };
+
+  // 测试模型连接
+  const handleTestConnection = async (modelId: string) => {
+    const model = models.find(m => m.id === modelId);
+    if (!model) {
+      showNotification('error', '要测试的模型不存在');
+      return;
+    }
+    
+    setTestingModel(modelId);
+    setTestResult(null);
+    
+    try {
+      console.log('🧪 开始测试模型连接:', model.name);
+      
+      // 创建 OpenAI 客户端
+      const OpenAI = (await import('openai')).default;
+      const openai = new OpenAI({
+        baseURL: model.baseUrl,
+        apiKey: model.apiKey,
+        dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
+      });
+      
+      // 发送简单的测试请求
+      const completion = await openai.chat.completions.create({
+        messages: [
+          { role: 'system', content: 'You are a helpful assistant.' },
+          { role: 'user', content: 'Hello, this is a connection test.' }
+        ],
+        model: model.name,
+        max_tokens: 10
+      });
+      
+      console.log('✅ 模型连接测试成功:', completion.choices[0]?.message?.content);
+      
+      setTestResult({
+        id: modelId,
+        success: true,
+        message: '连接成功！API 响应正常。'
+      });
+      
+      showNotification('success', `模型 "${model.name}" 连接测试成功`);
+    } catch (error) {
+      console.error('❌ 模型连接测试失败:', error);
+      
+      let errorMessage = '连接失败，请检查配置';
+      if (error instanceof Error) {
+        if (error.message.includes('API key')) {
+          errorMessage = 'API 密钥无效';
+        } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+          errorMessage = '请求超时，请检查网络连接';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = '网络错误，请检查 API 端点';
+        } else if (error.message.includes('404')) {
+          errorMessage = 'API 端点不存在，请检查 URL';
+        } else if (error.message.includes('401')) {
+          errorMessage = '认证失败，请检查 API 密钥';
+        } else {
+          errorMessage = `错误: ${error.message.substring(0, 50)}${error.message.length > 50 ? '...' : ''}`;
+        }
+      }
+      
+      setTestResult({
+        id: modelId,
+        success: false,
+        message: errorMessage
+      });
+      
+      showNotification('error', `模型 "${model.name}" 连接测试失败: ${errorMessage}`);
+    } finally {
+      setTestingModel(null);
     }
   };
 
@@ -430,13 +505,29 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                 <div className="flex items-center space-x-2">
                   {!model.isDefault && (
                     <button
-                      onClick={() => handleSetDefault(model.id)}
-                      className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
-                      title="设为默认"
-                    >
-                      <Star size={16} />
-                    </button>
+                        onClick={() => handleSetDefault(model.id)}
+                        className="p-2 text-gray-400 hover:text-yellow-600 hover:bg-yellow-50 dark:hover:bg-yellow-900/20 rounded-lg transition-colors"
+                        title="设为默认"
+                      >
+                        <Star size={16} />
+                      </button>
                   )}
+                  <button
+                    onClick={() => handleTestConnection(model.id)}
+                    disabled={testingModel === model.id}
+                    className={`p-2 rounded-lg transition-colors ${
+                      testingModel === model.id
+                        ? 'text-blue-600 dark:text-blue-400 cursor-wait'
+                        : 'text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20'
+                    }`}
+                    title="测试连接"
+                  >
+                    {testingModel === model.id ? (
+                      <Loader2 size={16} className="animate-spin" />
+                    ) : (
+                      <Activity size={16} />
+                    )}
+                  </button>
                   <button
                     onClick={() => handleEditModel(model)}
                     className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors"
@@ -454,10 +545,28 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                 </div>
               </div>
 
+              {/* 测试结果 */}
+              {testResult && testResult.id === model.id && (
+                <div className={`mt-2 p-2 rounded text-sm ${
+                  testResult.success 
+                    ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' 
+                    : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+                }`}>
+                  <div className="flex items-center space-x-2">
+                    {testResult.success ? (
+                      <CheckCircle size={14} className="text-green-600 dark:text-green-400" />
+                    ) : (
+                      <AlertCircle size={14} className="text-red-600 dark:text-red-400" />
+                    )}
+                    <span>{testResult.message}</span>
+                  </div>
+                </div>
+              )}
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Base URL
+                    API 端点
                   </label>
                   <div className="flex items-center space-x-2">
                     <Globe size={14} className="text-gray-400" />
@@ -812,14 +921,19 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 Base URL *
               </label>
-              <input
-                type="url"
-                value={formData.baseUrl}
-                onChange={(e) => handleInputChange('baseUrl', e.target.value)}
-                placeholder="https://api.openai.com/v1"
-                className={getFieldClassName('baseUrl', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
-                disabled={modalLoading}
-              />
+              <div className="space-y-1">
+                <input
+                  type="url"
+                  value={formData.baseUrl}
+                  onChange={(e) => handleInputChange('baseUrl', e.target.value)}
+                  placeholder="https://api.openai.com/v1"
+                  className={getFieldClassName('baseUrl', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
+                  disabled={modalLoading}
+                />
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  例如: https://api.openai.com/v1 或您的自定义 API 端点
+                </p>
+              </div>
               {validationErrors.baseUrl && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
                   <AlertTriangle size={12} />
@@ -832,23 +946,28 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                 API Key *
               </label>
-              <div className="relative">
-                <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={formData.apiKey}
-                  onChange={(e) => handleInputChange('apiKey', e.target.value)}
-                  placeholder="sk-..."
-                  className={getFieldClassName('apiKey', 'w-full px-4 py-3 pr-12 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
-                  disabled={modalLoading}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                  disabled={modalLoading}
-                >
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
+              <div className="space-y-1">
+                <div className="relative">
+                  <input
+                    type={showApiKey ? 'text' : 'password'}
+                    value={formData.apiKey}
+                    onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                    placeholder="sk-..."
+                    className={getFieldClassName('apiKey', 'w-full px-4 py-3 pr-12 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
+                    disabled={modalLoading}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey(!showApiKey)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                    disabled={modalLoading}
+                  >
+                    {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  您的 API 密钥，通常以 "sk-" 开头
+                </p>
               </div>
               {validationErrors.apiKey && (
                 <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">

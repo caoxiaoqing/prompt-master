@@ -11,11 +11,12 @@ import {
   MessageSquare,
   Loader2,
   Settings,
-  ArrowDown
+  ArrowDown,
+  AlertCircle
 } from 'lucide-react';
+import OpenAI from "openai";
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
-import { generateMockResponse, mockModels } from '../utils/mockData';
 import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
 
@@ -47,6 +48,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   // 获取用户的自定义模型列表
   const customModels = userInfo?.custom_models || [];
@@ -159,9 +161,34 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [messages]);
 
+  // 创建 OpenAI 客户端实例
+  const createOpenAIClient = (customModel: any) => {
+    if (!customModel) {
+      console.error('❌ 无法创建 OpenAI 客户端: 未选择模型');
+      return null;
+    }
+    
+    try {
+      return new OpenAI({
+        baseURL: customModel.baseUrl,
+        apiKey: customModel.apiKey,
+        dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
+      });
+    } catch (error) {
+      console.error('❌ 创建 OpenAI 客户端失败:', error);
+      return null;
+    }
+  };
+
   const handleSendMessage = async () => {
     // 关键修复：移除 systemPrompt 的必需检查，允许无 system prompt 时聊天
     if (!userInput.trim()) return;
+    
+    // 检查是否选择了模型
+    if (!state.selectedCustomModel) {
+      setApiError('请先在账户设置中配置并选择一个自定义模型');
+      return;
+    }
 
     const userMessage: ChatMessage = {
       id: Date.now().toString(),
@@ -189,13 +216,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setTimeout(() => scrollToBottom(), 100);
 
     // 关键修复：发送消息后立即重新聚焦到输入框
-    setTimeout(() => {
-      if (inputRef.current) {
-        inputRef.current.focus();
-      }
-    }, 150); // 稍微延迟确保DOM更新完成
+    setTimeout(() => inputRef.current?.focus(), 150);
 
     try {
+      setApiError(null);
+      
       // 构建完整的对话上下文 - 修复：只有在有 system prompt 时才添加
       const conversationContext = [
         // 只有在有 system prompt 时才添加系统消息
@@ -207,18 +232,54 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         { role: 'user', content: userInput.trim() }
       ];
 
-      const result = await generateMockResponse(
-        JSON.stringify(conversationContext), 
-        state.selectedModel
-      );
+      // 创建 OpenAI 客户端
+      const openai = createOpenAIClient(state.selectedCustomModel);
+      if (!openai) {
+        throw new Error('无法创建 OpenAI 客户端，请检查模型配置');
+      }
+      
+      console.log('🚀 发送请求到 OpenAI API...', {
+        model: state.selectedCustomModel.name,
+        messagesCount: conversationContext.length
+      });
+      
+      const startTime = Date.now();
+      
+      // 调用 OpenAI API
+      const completion = await openai.chat.completions.create({
+        messages: conversationContext,
+        model: state.selectedCustomModel.name,
+        temperature: temperature,
+        max_tokens: maxTokens,
+        top_p: state.selectedCustomModel.topP || 1.0,
+        top_k: state.selectedCustomModel.topK || 50
+      });
+      
+      const responseTime = Date.now() - startTime;
+      
+      console.log('✅ OpenAI API 响应成功:', {
+        responseTime: `${responseTime}ms`,
+        model: state.selectedCustomModel.name,
+        hasChoices: completion.choices.length > 0
+      });
+      
+      // 提取响应内容
+      const responseContent = completion.choices[0]?.message?.content || '无响应内容';
+      
+      // 计算 token 使用情况
+      const tokenUsage = completion.usage ? {
+        prompt: completion.usage.prompt_tokens,
+        completion: completion.usage.completion_tokens,
+        total: completion.usage.total_tokens
+      } : { prompt: 0, completion: 0, total: 0 };
 
       const assistantMessage: ChatMessage = {
         id: loadingMessage.id,
         role: 'assistant',
-        content: result.response,
+        content: responseContent,
         timestamp: new Date(),
-        tokenUsage: result.tokenUsage,
-        responseTime: result.responseTime
+        tokenUsage: tokenUsage,
+        responseTime: responseTime
       };
 
       setMessages(prev => 
@@ -236,10 +297,13 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // 单独更新任务的响应时间和token使用情况
       setTimeout(() => {
         if (state.currentTask) {
+          const updatedTokenUsage = tokenUsage;
+          const updatedResponseTime = responseTime;
+          
           const updatedTask = {
             ...state.currentTask,
-            responseTime: result.responseTime,
-            tokenUsage: result.tokenUsage,
+            responseTime: updatedResponseTime,
+            tokenUsage: updatedTokenUsage,
             updatedAt: new Date()
           };
           dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
@@ -255,6 +319,31 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     } catch (error) {
       console.error('Error sending message:', error);
+      
+      // 设置用户友好的错误消息
+      let errorMessage = '发送消息失败，请稍后重试';
+      
+      if (error instanceof Error) {
+        console.error('错误详情:', error.message);
+        
+        // 处理常见的 API 错误
+        if (error.message.includes('API key')) {
+          errorMessage = 'API 密钥无效，请检查您的模型配置';
+        } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
+          errorMessage = '请求超时，请检查您的网络连接';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          errorMessage = '网络错误，请检查您的网络连接';
+        } else if (error.message.includes('rate limit') || error.message.includes('429')) {
+          errorMessage = '请求频率过高，请稍后再试';
+        } else if (error.message.includes('content filter') || error.message.includes('moderation')) {
+          errorMessage = '内容被过滤，请修改您的请求';
+        } else if (error.message.includes('model')) {
+          errorMessage = '模型配置错误，请检查模型名称和参数';
+        }
+      }
+      
+      setApiError(errorMessage);
+      
       setMessages(prev => 
         prev.filter(msg => msg.id !== loadingMessage.id)
       );
@@ -454,7 +543,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
                 <Bot size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">开始对话测试</p>
+                <p className="text-lg font-medium mb-2">开始 AI 对话测试</p>
                 <p className="text-sm">
                   输入用户消息来测试AI模型的回答效果
                 </p>
@@ -464,12 +553,22 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     ✓ 已设置 System Prompt，将影响AI的回答风格
                   </p>
                 ) : (
-                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-2">
+                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 max-w-md">
                     {hasCustomModels 
-                      ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格'
+                      ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格（可选）'
                       : '⚠️ 请先在账户设置中配置自定义模型'
                     }
                   </p>
+                )}
+                
+                {/* 显示 API 错误信息 */}
+                {apiError && (
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md mx-auto">
+                    <div className="flex items-center space-x-2">
+                      <AlertCircle size={16} className="text-red-600 dark:text-red-400" />
+                      <p className="text-sm text-red-700 dark:text-red-300">{apiError}</p>
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
@@ -514,6 +613,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <div className="bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-700 p-4 flex-shrink-0 chat-input-area">
         <div className="flex items-start space-x-3">
           <div className="flex-1">
+            {/* 显示 API 错误信息 */}
+            {apiError && (
+              <div className="mb-2 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <div className="flex items-center space-x-2">
+                  <AlertCircle size={14} className="text-red-600 dark:text-red-400" />
+                  <p className="text-xs text-red-700 dark:text-red-300">{apiError}</p>
+                </div>
+              </div>
+            )}
+            
             <textarea
               ref={inputRef}
               value={userInput}
@@ -522,7 +631,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               placeholder={hasCustomModels ? "输入用户消息..." : "请先配置自定义模型"}
               disabled={isLoading || !hasCustomModels}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-              rows={Math.min(Math.max(userInput.split('\n').length, 1), 4)}
+              rows={Math.min(Math.max(userInput.split('\n').length, 1), 5)}
             />
             <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
               <span>按 Enter 发送，Shift + Enter 换行</span>
@@ -572,7 +681,7 @@ const MessageBubble: React.FC<{
   const isUser = message.role === 'user';
 
   return (
-    <motion.div
+    <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -20 }}
@@ -598,7 +707,7 @@ const MessageBubble: React.FC<{
             {message.isLoading ? (
               <div className="flex items-center space-x-2">
                 <Loader2 size={16} className="animate-spin" />
-                <span className="text-sm">正在思考...</span>
+                <span className="text-sm">AI 正在思考...</span>
               </div>
             ) : (
               <div className="whitespace-pre-wrap text-sm leading-relaxed">
