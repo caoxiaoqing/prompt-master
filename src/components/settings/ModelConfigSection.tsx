@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
+  Activity,
   Plus, 
   Edit3, 
   Trash2, 
@@ -13,9 +14,10 @@ import {
   Key,
   Globe,
   Star,
+  AlertCircle,
   Loader2,
   Check,
-  AlertTriangle,
+  AlertTriangle, 
   RotateCcw
 } from 'lucide-react';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -54,7 +56,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   const [editingModel, setEditingModel] = useState<ModelConfig | null>(null);
   const [showApiKey, setShowApiKey] = useState<{ [key: string]: boolean }>({});
   const [testingModel, setTestingModel] = useState<string | null>(null);
-  const [testResult, setTestResult] = useState<{id: string, success: boolean, message: string} | null>(null);
+  const [testResult, setTestResult] = useState<{ id: string, success: boolean, message: string } | null>(null);
 
   // Load models from userInfo on component mount
   useEffect(() => {
@@ -165,53 +167,73 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     setTestResult(null);
     
     try {
-      console.log('🧪 开始测试模型连接:', model.name);
+      console.log('🧪 开始测试模型连接:', { modelName: model.name, baseUrl: model.baseUrl });
       
-      // 创建 OpenAI 客户端
-      const OpenAI = (await import('openai')).default;
-      const openai = new OpenAI({
-        baseURL: model.baseUrl,
-        apiKey: model.apiKey,
-        dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
-      });
+      // 动态导入 OpenAI
+      const { default: OpenAI } = await import('openai');
       
-      // 发送简单的测试请求
-      const completion = await openai.chat.completions.create({
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant.' },
-          { role: 'user', content: 'Hello, this is a connection test.' }
-        ],
-        model: model.name,
-        max_tokens: 10
-      });
-      
-      console.log('✅ 模型连接测试成功:', completion.choices[0]?.message?.content);
-      
-      setTestResult({
-        id: modelId,
-        success: true,
-        message: '连接成功！API 响应正常。'
-      });
-      
-      showNotification('success', `模型 "${model.name}" 连接测试成功`);
-    } catch (error) {
-      console.error('❌ 模型连接测试失败:', error);
-      
-      let errorMessage = '连接失败，请检查配置';
-      if (error instanceof Error) {
-        if (error.message.includes('API key')) {
-          errorMessage = 'API 密钥无效';
-        } else if (error.message.includes('timeout') || error.message.includes('ETIMEDOUT')) {
-          errorMessage = '请求超时，请检查网络连接';
-        } else if (error.message.includes('network') || error.message.includes('fetch')) {
-          errorMessage = '网络错误，请检查 API 端点';
-        } else if (error.message.includes('404')) {
-          errorMessage = 'API 端点不存在，请检查 URL';
-        } else if (error.message.includes('401')) {
-          errorMessage = '认证失败，请检查 API 密钥';
-        } else {
-          errorMessage = `错误: ${error.message.substring(0, 50)}${error.message.length > 50 ? '...' : ''}`;
+      try {
+        // 创建 OpenAI 客户端
+        const openai = new OpenAI({
+          baseURL: model.baseUrl,
+          apiKey: model.apiKey,
+          dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
+        });
+        
+        // 发送简单的测试请求
+        const completion = await openai.chat.completions.create({
+          messages: [
+            { role: 'system', content: 'You are a helpful assistant.' },
+            { role: 'user', content: 'Hello, this is a connection test.' }
+          ],
+          model: model.name,
+          max_tokens: 10
+        });
+        
+        console.log('✅ 模型连接测试成功:', completion.choices[0]?.message?.content);
+        
+        setTestResult({
+          id: modelId,
+          success: true,
+          message: '连接成功！API 响应正常。'
+        });
+        
+        showNotification('success', `模型 "${model.name}" 连接测试成功`);
+      } catch (apiError) {
+        console.error('❌ API 调用失败:', apiError);
+        
+        let errorMessage = '连接失败，请检查配置';
+        if (apiError instanceof Error) {
+          if (apiError.message.includes('API key')) {
+            errorMessage = 'API 密钥无效';
+          } else if (apiError.message.includes('timeout') || apiError.message.includes('ETIMEDOUT')) {
+            errorMessage = '请求超时，请检查网络连接';
+          } else if (apiError.message.includes('network') || apiError.message.includes('fetch')) {
+            errorMessage = '网络错误，请检查 API 端点';
+          } else if (apiError.message.includes('404')) {
+            errorMessage = 'API 端点不存在，请检查 URL';
+          } else if (apiError.message.includes('401')) {
+            errorMessage = '认证失败，请检查 API 密钥';
+          } else {
+            errorMessage = `错误: ${apiError.message.substring(0, 50)}${apiError.message.length > 50 ? '...' : ''}`;
+          }
         }
+        
+        setTestResult({
+          id: modelId,
+          success: false,
+          message: errorMessage
+        });
+        
+        showNotification('error', `模型 "${model.name}" 连接测试失败: ${errorMessage}`);
+      }
+      
+    } catch (error) {
+      console.error('❌ 导入 OpenAI 模块失败:', error);
+      
+      let errorMessage = '测试失败: 无法加载 OpenAI 模块';
+      if (error instanceof Error) {
+        errorMessage = `模块加载错误: ${error.message}`;
       }
       
       setTestResult({
