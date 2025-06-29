@@ -158,6 +158,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   // 处理保存新模型
   const handleSaveModel = async (modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
     if (!user) return;
+    
+    console.log('🔄 开始保存新模型:', modelData.name);
 
     try {
       setLoading(true);
@@ -171,6 +173,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         topP: modelData.parameters.topP,
         temperature: modelData.parameters.temperature
       });
+      
+      console.log('✅ 数据库保存成功:', newModel);
       
       // 更新本地状态
       const newModelConfig: ModelConfig = {
@@ -188,11 +192,13 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       };
       
       setModels(prev => [...prev, newModelConfig]);
+      console.log('✅ 本地状态更新成功');
       showNotification('success', '模型配置已添加');
     } catch (error) {
-      setLoading(false); // 确保在错误情况下也重置loading状态
       console.error('Save model error:', error);
       showNotification('error', error instanceof Error ? error.message : '保存失败，请稍后重试');
+      // 错误时不要关闭模态框，让用户可以重试
+      throw error; // 重新抛出错误，阻止模态框关闭
     } finally {
       setLoading(false);
     }
@@ -201,6 +207,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   // 处理更新现有模型
   const handleUpdateModel = async (modelId: string, modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
     if (!user) return;
+    
+    console.log('🔄 开始更新模型:', modelId, modelData.name);
 
     try {
       setLoading(true);
@@ -215,6 +223,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         temperature: modelData.parameters.temperature
       });
       
+      console.log('✅ 数据库更新成功');
+      
       // 更新本地状态
       setModels(prev => prev.map(m => 
         m.id === modelId 
@@ -228,11 +238,13 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
           : m
       ));
       
+      console.log('✅ 本地状态更新成功');
       showNotification('success', '模型配置已更新');
     } catch (error) {
-      setLoading(false); // 确保在错误情况下也重置loading状态
       console.error('Update model error:', error);
       showNotification('error', error instanceof Error ? error.message : '更新失败，请稍后重试');
+      // 错误时不要关闭模态框，让用户可以重试
+      throw error; // 重新抛出错误，阻止模态框关闭
     } finally {
       setLoading(false);
     }
@@ -405,21 +417,30 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         {showAddModal && (
           <ModelConfigModal
             model={editingModel}
-            onSave={(modelData) => {
-              // 先关闭模态框，避免状态冲突
-              setShowAddModal(false);
-              setEditingModel(null);
-              
-              if (editingModel) {
-                // 更新现有模型 - 延迟执行避免状态冲突
-                handleUpdateModel(editingModel.id, modelData);
-              } else {
-                // 添加新模型
-                handleSaveModel(modelData);
+            onSave={async (modelData) => {
+              try {
+                console.log('📝 模态框保存操作开始');
+                
+                if (editingModel) {
+                  // 更新现有模型
+                  await handleUpdateModel(editingModel.id, modelData);
+                } else {
+                  // 添加新模型
+                  await handleSaveModel(modelData);
+                }
+                
+                // 只有在保存成功后才关闭模态框
+                console.log('✅ 保存成功，关闭模态框');
+                setShowAddModal(false);
+                setEditingModel(null);
+              } catch (error) {
+                // 保存失败时不关闭模态框，让用户可以重试
+                console.error('❌ 保存失败，保持模态框打开:', error);
+                // 错误已经在 handleSaveModel 或 handleUpdateModel 中处理了
               }
-              setShowAddModal(false);
             }}
             onClose={() => {
+              console.log('❌ 用户取消操作，关闭模态框');
               setShowAddModal(false);
               setEditingModel(null);
             }}
@@ -480,9 +501,12 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     
     // 验证表单
     if (!formData.name.trim() || !formData.baseUrl.trim() || !formData.apiKey.trim()) {
+      console.warn('⚠️ 表单验证失败');
       return;
     }
 
+    console.log('📝 开始保存模型配置:', formData.name);
+    
     onSave({
       name: formData.name.trim(),
       baseUrl: formData.baseUrl.trim(),
