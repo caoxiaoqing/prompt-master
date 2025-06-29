@@ -129,7 +129,8 @@ export const useTaskPersistence = ({
         taskName, 
         folderName,
         userEmail: user.email,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        timeoutWarning: '如果操作时间较长，可能是网络问题，请耐心等待'
       })
       
       // 添加重试机制
@@ -158,7 +159,7 @@ export const useTaskPersistence = ({
           })
           
           // 如果是重复键错误，不需要重试
-          if (error instanceof Error && error.message.includes('duplicate key')) {
+          if (error instanceof Error && (error.message.includes('duplicate key') || error.message.includes('23505'))) {
             console.log('ℹ️ 检测到重复键错误，任务可能已存在，停止重试')
             return // 直接返回，不抛出错误
           }
@@ -167,10 +168,11 @@ export const useTaskPersistence = ({
           if (error instanceof Error && (
             error.message.includes('timeout') || 
             error.message.includes('Connection test timeout') ||
-            error.message.includes('Database connection test failed')
+            error.message.includes('Database connection test failed') ||
+            error.message.includes('AbortError')
           )) {
-            console.log('⏰ 检测到连接超时错误，停止重试')
-            throw new Error('数据库连接超时，请检查网络连接')
+            console.log('⏰ 检测到连接超时错误，停止重试，但不影响应用使用')
+            return // 不抛出错误，让应用继续运行
           }
           
           if (retryCount >= maxRetries) {
@@ -195,7 +197,7 @@ export const useTaskPersistence = ({
       })
       
       // 如果是重复键错误，不抛出错误，让应用继续运行
-      if (error instanceof Error && error.message.includes('duplicate key')) {
+      if (error instanceof Error && (error.message.includes('duplicate key') || error.message.includes('23505'))) {
         console.log('ℹ️ 任务可能已存在，继续运行应用')
         return
       }
@@ -203,6 +205,15 @@ export const useTaskPersistence = ({
       // 其他错误仍然抛出
       throw error
     }
+      
+      // 如果是超时相关错误，也不抛出，让应用继续运行
+      if (error instanceof Error && error.message.includes('timeout')) {
+        console.log('⏰ 创建任务超时，但不影响应用使用')
+        return
+      }
+      
+      // 其他错误抛出
+      throw error
   }, [user])
 
   // 手动强制同步所有数据
