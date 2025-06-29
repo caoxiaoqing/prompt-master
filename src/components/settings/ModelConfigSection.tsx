@@ -27,11 +27,6 @@ interface ModelConfig {
   name: string;
   baseUrl: string;
   apiKey: string;
-  parameters: {
-    topK: number;
-    topP: number;
-    temperature: number;
-  };
   isDefault: boolean;
   createdAt: Date;
 }
@@ -68,11 +63,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         name: model.name,
         baseUrl: model.baseUrl,
         apiKey: model.apiKey,
-        parameters: {
-          topK: model.topK,
-          topP: model.topP,
-          temperature: model.temperature
-        },
         isDefault: model.isDefault || false,
         createdAt: new Date(model.createdAt)
       }));
@@ -119,11 +109,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
           name: model.name,
           baseUrl: model.baseUrl,
           apiKey: model.apiKey,
-          parameters: {
-            topK: model.topK,
-            topP: model.topP,
-            temperature: model.temperature
-          },
           isDefault: model.isDefault || false,
           createdAt: new Date(model.createdAt)
         }));
@@ -205,7 +190,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   };
 
   // 处理保存新模型
-  const handleSaveModel = async (modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
+  const handleSaveModel = async (modelData: { name: string; baseUrl: string; apiKey: string }) => {
     if (!user) return;
     
     
@@ -228,10 +213,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       const result = await authService.addCustomModel(user.id, {
         name: modelData.name,
         baseUrl: modelData.baseUrl,
-        apiKey: modelData.apiKey,
-        topK: modelData.parameters.topK,
-        topP: modelData.parameters.topP,
-        temperature: modelData.parameters.temperature
+        apiKey: modelData.apiKey
       });
       
       const { model: newModel } = result;
@@ -243,11 +225,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         name: newModel.name,
         baseUrl: newModel.baseUrl,
         apiKey: newModel.apiKey,
-        parameters: {
-          topK: newModel.topK,
-          topP: newModel.topP,
-          temperature: newModel.temperature
-        },
         isDefault: newModel.isDefault,
         createdAt: new Date(newModel.createdAt)
       };
@@ -294,7 +271,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
   };
 
   // 处理更新现有模型
-  const handleUpdateModel = async (modelId: string, modelData: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => {
+  const handleUpdateModel = async (modelId: string, modelData: { name: string; baseUrl: string; apiKey: string }) => {
     if (!user) return;
     
     console.log('🔄 开始更新模型:', {
@@ -317,10 +294,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       await authService.updateCustomModel(user.id, modelId, {
         name: modelData.name,
         baseUrl: modelData.baseUrl,
-        apiKey: modelData.apiKey,
-        topK: modelData.parameters.topK,
-        topP: modelData.parameters.topP,
-        temperature: modelData.parameters.temperature
+        apiKey: modelData.apiKey
       });
       
       console.log('✅ 数据库更新成功');
@@ -332,8 +306,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
               ...m,
               name: modelData.name,
               baseUrl: modelData.baseUrl,
-              apiKey: modelData.apiKey,
-              parameters: modelData.parameters
+              apiKey: modelData.apiKey
             }
           : m
       ));
@@ -516,25 +489,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  模型参数
-                </h4>
-                <div className="grid grid-cols-3 gap-4 text-sm">
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Top-K:</span>
-                    <span className="ml-2 font-mono">{model.parameters.topK}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Top-P:</span>
-                    <span className="ml-2 font-mono">{model.parameters.topP}</span>
-                  </div>
-                  <div>
-                    <span className="text-gray-500 dark:text-gray-400">Temperature:</span>
-                    <span className="ml-2 font-mono">{model.parameters.temperature}</span>
-                  </div>
-                </div>
-              </div>
             </motion.div>
           ))
         )}
@@ -591,7 +545,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
 interface ModelConfigModalProps {
   model: ModelConfig | null;
   onSave: (
-    model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>, 
+    model: { name: string; baseUrl: string; apiKey: string }, 
     setLoading: (loading: boolean) => void,
     onSuccess: () => void
   ) => void;
@@ -610,19 +564,13 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const initialFormData = {
     name: model?.name || '',
     baseUrl: model?.baseUrl || '',
-    apiKey: model?.apiKey || '',
-    topK: model?.parameters.topK || 50,
-    topP: model?.parameters.topP || 1.0,
-    temperature: model?.parameters.temperature || 0.8
+    apiKey: model?.apiKey || ''
   };
 
   const [formData, setFormData] = useState({
     name: model?.name || '',
     baseUrl: model?.baseUrl || '',
-    apiKey: model?.apiKey || '',
-    topK: model?.parameters.topK || 50,
-    topP: model?.parameters.topP || 1.0,
-    temperature: model?.parameters.temperature || 0.8
+    apiKey: model?.apiKey || ''
   });
   const [showApiKey, setShowApiKey] = useState(false);
   
@@ -630,10 +578,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const [validationErrors, setValidationErrors] = useState({
     name: '',
     baseUrl: '',
-    apiKey: '',
-    topK: '',
-    topP: '',
-    temperature: ''
+    apiKey: ''
   });
 
   // 实时验证函数
@@ -689,48 +634,6 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         }
         return '';
         
-      case 'topK':
-        const topKNum = value as number;
-        if (isNaN(topKNum)) {
-          return 'Top-K 必须是数字';
-        }
-        if (topKNum < 1) {
-          return 'Top-K 不能小于 1';
-        }
-        if (topKNum > 100) {
-          return 'Top-K 不能大于 100';
-        }
-        if (!Number.isInteger(topKNum)) {
-          return 'Top-K 必须是整数';
-        }
-        return '';
-        
-      case 'topP':
-        const topPNum = value as number;
-        if (isNaN(topPNum)) {
-          return 'Top-P 必须是数字';
-        }
-        if (topPNum < 0) {
-          return 'Top-P 不能小于 0';
-        }
-        if (topPNum > 1) {
-          return 'Top-P 不能大于 1';
-        }
-        return '';
-        
-      case 'temperature':
-        const tempNum = value as number;
-        if (isNaN(tempNum)) {
-          return 'Temperature 必须是数字';
-        }
-        if (tempNum < 0) {
-          return 'Temperature 不能小于 0';
-        }
-        if (tempNum > 2) {
-          return 'Temperature 不能大于 2';
-        }
-        return '';
-        
       default:
         return '';
     }
@@ -752,10 +655,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     setValidationErrors({
       name: '',
       baseUrl: '',
-      apiKey: '',
-      topK: '',
-      topP: '',
-      temperature: ''
+      apiKey: ''
     });
   };
 
@@ -764,10 +664,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     const errors = {
       name: validateField('name', formData.name),
       baseUrl: validateField('baseUrl', formData.baseUrl),
-      apiKey: validateField('apiKey', formData.apiKey),
-      topK: validateField('topK', formData.topK),
-      topP: validateField('topP', formData.topP),
-      temperature: validateField('temperature', formData.temperature)
+      apiKey: validateField('apiKey', formData.apiKey)
     };
     
     setValidationErrors(errors);
@@ -791,12 +688,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     onSave({
       name: formData.name.trim(),
       baseUrl: formData.baseUrl.trim(),
-      apiKey: formData.apiKey.trim(),
-      parameters: {
-        topK: formData.topK,
-        topP: formData.topP,
-        temperature: formData.temperature
-      }
+      apiKey: formData.apiKey.trim()
     }, setModalLoading, () => {
       // 成功回调：关闭模态框
       onClose();
@@ -812,10 +704,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
       setValidationErrors({
         name: '',
         baseUrl: '',
-        apiKey: '',
-        topK: '',
-        topP: '',
-        temperature: ''
+        apiKey: ''
       });
     };
   }, []);
@@ -831,10 +720,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const hasChanges = 
     formData.name !== initialFormData.name ||
     formData.baseUrl !== initialFormData.baseUrl ||
-    formData.apiKey !== initialFormData.apiKey ||
-    formData.topK !== initialFormData.topK ||
-    formData.topP !== initialFormData.topP ||
-    formData.temperature !== initialFormData.temperature;
+    formData.apiKey !== initialFormData.apiKey;
 
   // 对于编辑模式，还需要检查是否有实际变化
   const canSave = isFormValid && (model ? hasChanges : true);
@@ -973,86 +859,6 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
             </div>
           </div>
 
-          {/* Model Parameters */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">模型参数</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Top-K
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.topK}
-                  onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
-                  className={getFieldClassName('topK', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
-                  disabled={modalLoading}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  限制候选词汇数量 (1-100)
-                </p>
-                {validationErrors.topK && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
-                    <AlertTriangle size={12} />
-                    <span>{validationErrors.topK}</span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Top-P
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={formData.topP}
-                  onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
-                  className={getFieldClassName('topP', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
-                  disabled={modalLoading}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  核采样概率 (0.0-1.0)
-                </p>
-                {validationErrors.topP && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
-                    <AlertTriangle size={12} />
-                    <span>{validationErrors.topP}</span>
-                  </p>
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Temperature
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={formData.temperature}
-                  onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
-                  className={getFieldClassName('temperature', 'w-full px-4 py-3 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2')}
-                  disabled={modalLoading}
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  输出随机性 (0.0-2.0)
-                </p>
-                {validationErrors.temperature && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400 flex items-center space-x-1">
-                    <AlertTriangle size={12} />
-                    <span>{validationErrors.temperature}</span>
-                  </p>
-                )}
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer - 固定不滚动 */}

@@ -346,9 +346,6 @@ export const authService = {
     name: string
     baseUrl: string
     apiKey: string
-    topK: number
-    topP: number
-    temperature: number
   }) {
     try {
       if (!isSupabaseConnected) {
@@ -360,11 +357,6 @@ export const authService = {
         modelName: modelConfig.name,
         baseUrl: modelConfig.baseUrl,
         hasApiKey: !!modelConfig.apiKey,
-        parameters: {
-          topK: modelConfig.topK,
-          topP: modelConfig.topP,
-          temperature: modelConfig.temperature
-        }
       })
 
       // 1. 生成唯一的 model_id
@@ -396,10 +388,7 @@ export const authService = {
       const duplicateModel = existingModels.find((model: any) => 
         model.name === modelConfig.name &&
         model.baseUrl === modelConfig.baseUrl &&
-        model.apiKey === modelConfig.apiKey &&
-        model.topK === modelConfig.topK &&
-        model.topP === modelConfig.topP &&
-        model.temperature === modelConfig.temperature
+        model.apiKey === modelConfig.apiKey
       )
 
       if (duplicateModel) {
@@ -415,9 +404,6 @@ export const authService = {
         name: modelConfig.name.trim(),
         baseUrl: modelConfig.baseUrl.trim(),
         apiKey: modelConfig.apiKey.trim(),
-        topK: modelConfig.topK,
-        topP: modelConfig.topP,
-        temperature: modelConfig.temperature,
         createdAt: new Date().toISOString(),
         isDefault: existingModels.length === 0 // 如果是第一个模型，设为默认
       }
@@ -486,9 +472,6 @@ export const authService = {
     name: string
     baseUrl: string
     apiKey: string
-    topK: number
-    topP: number
-    temperature: number
   }) {
     try {
       if (!isSupabaseConnected) {
@@ -501,11 +484,6 @@ export const authService = {
         modelName: modelConfig.name,
         baseUrl: modelConfig.baseUrl,
         hasApiKey: !!modelConfig.apiKey,
-        parameters: {
-          topK: modelConfig.topK,
-          topP: modelConfig.topP,
-          temperature: modelConfig.temperature
-        }
       })
 
       // 1. 获取当前用户的模型列表
@@ -529,10 +507,7 @@ export const authService = {
         model.id !== modelId &&
         model.name === modelConfig.name &&
         model.baseUrl === modelConfig.baseUrl &&
-        model.apiKey === modelConfig.apiKey &&
-        model.topK === modelConfig.topK &&
-        model.topP === modelConfig.topP &&
-        model.temperature === modelConfig.temperature
+        model.apiKey === modelConfig.apiKey
       )
 
       if (duplicateModel) {
@@ -549,9 +524,6 @@ export const authService = {
               name: modelConfig.name.trim(),
               baseUrl: modelConfig.baseUrl.trim(),
               apiKey: modelConfig.apiKey.trim(),
-              topK: modelConfig.topK,
-              topP: modelConfig.topP,
-              temperature: modelConfig.temperature,
               updatedAt: new Date().toISOString()
             }
           : model

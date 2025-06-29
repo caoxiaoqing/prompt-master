@@ -179,24 +179,6 @@ const StatusBar: React.FC = () => {
   // 如果用户有自定义模型但没有选择，显示提示
   if (hasCustomModels && !selectedCustomModel) {
     const statusItems = [
-      {
-        icon: Hash,
-        label: 'Prompt Tokens',
-        value: currentPromptTokens.toString(),
-        color: 'text-orange-600 dark:text-orange-400'
-      },
-      {
-        icon: Database,
-        label: 'Total Tokens',
-        value: currentTokenUsage ? currentTokenUsage.total.toString() : '0',
-        color: 'text-pink-600 dark:text-pink-400'
-      },
-      {
-        icon: Cpu,
-        label: '模型',
-        value: '请选择模型',
-        color: 'text-yellow-600 dark:text-yellow-400'
-      }
     ];
 
     return (
