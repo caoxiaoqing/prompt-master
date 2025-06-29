@@ -104,9 +104,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       console.log('✅ 数据库删除成功，更新本地状态');
       
-      // 强制刷新用户信息以获取最新数据
-      refreshUserInfo();
-      
       // 立即更新本地状态 - 从数据库返回的最新数据
       if (updatedUserInfo && updatedUserInfo.custom_models) {
         const updatedModels: ModelConfig[] = updatedUserInfo.custom_models.map((model: any) => ({
@@ -127,6 +124,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         // 如果没有返回数据或者 custom_models 为空，清空本地状态
         setModels([]);
       }
+      
+      // 在后台静默刷新用户信息，不影响当前页面
+      setTimeout(() => {
+        refreshUserInfo();
+      }, 100);
       
       showNotification('success', '模型配置已删除');
       console.log('✅ 模型删除完成');
@@ -155,10 +157,12 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       setModels(updatedModels);
       
-      showNotification('success', '默认模型设置成功');
+      // 在后台静默刷新用户信息，不影响当前页面
+      setTimeout(() => {
+        refreshUserInfo();
+      }, 100);
       
-      // 刷新用户信息以获取最新数据
-      refreshUserInfo();
+      showNotification('success', '默认模型设置成功');
     } catch (error) {
       console.error('Set default model error:', error);
       showNotification('error', error instanceof Error ? error.message : '设置失败，请稍后重试');
@@ -198,9 +202,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       console.log('✅ 数据库保存成功:', newModel);
       
-      // 刷新用户信息以获取最新数据
-      refreshUserInfo();
-      
       // 更新本地状态
       const newModelConfig: ModelConfig = {
         id: newModel.id,
@@ -218,6 +219,12 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       setModels(prev => [...prev, newModelConfig]);
       console.log('✅ 本地状态更新成功');
+      
+      // 在后台静默刷新用户信息，不影响当前页面
+      setTimeout(() => {
+        refreshUserInfo();
+      }, 100);
+      
       showNotification('success', '模型配置已添加');
     } catch (error) {
       console.error('Save model error:', error);
@@ -251,9 +258,6 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       console.log('✅ 数据库更新成功');
       
-      // 刷新用户信息以获取最新数据
-      refreshUserInfo();
-      
       // 更新本地状态
       setModels(prev => prev.map(m => 
         m.id === modelId 
@@ -268,6 +272,12 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       ));
       
       console.log('✅ 本地状态更新成功');
+      
+      // 在后台静默刷新用户信息，不影响当前页面
+      setTimeout(() => {
+        refreshUserInfo();
+      }, 100);
+      
       showNotification('success', '模型配置已更新');
     } catch (error) {
       console.error('Update model error:', error);

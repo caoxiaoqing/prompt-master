@@ -197,23 +197,21 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   // 监听数据刷新触发器，重新获取用户信息
   useEffect(() => {
     const refreshUserInfo = async () => {
-      if (!user || dataRefreshTrigger === 0) return
+      if (!user || dataRefreshTrigger === 0 || loading) return
       
       try {
         console.log('🔄 刷新用户信息...')
-        setLoading(true)
+        // 不设置全局 loading 状态，避免影响当前页面
         const { userInfo: refreshedUserInfo } = await authService.getCurrentUser(true)
         setUserInfo(refreshedUserInfo)
         console.log('✅ 用户信息刷新成功')
       } catch (error) {
         console.error('❌ 刷新用户信息失败:', error)
-      } finally {
-        setLoading(false)
       }
     }
 
     refreshUserInfo()
-  }, [dataRefreshTrigger, user])
+  }, [dataRefreshTrigger, user, loading])
 
   const signUp = async (email: string, password: string, userName: string) => {
     try {
