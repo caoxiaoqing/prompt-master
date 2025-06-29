@@ -1,4 +1,5 @@
 import { supabase } from './supabase'
+import { isSupabaseAvailable } from './supabase'
 import { ChatMessage } from '../types'
 
 // 聊天信息的数据结构
@@ -51,6 +52,12 @@ export class TaskService {
     defaultModelParams: ModelParams
   ): Promise<TaskInfo> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，跳过数据库操作')
+        throw new Error('Database connection unavailable')
+      }
+
       console.log('📝 创建新任务记录:', { taskId, taskName, folderName })
       
       const taskData: Omit<TaskInfo, 'id' | 'created_at'> = {
@@ -91,6 +98,12 @@ export class TaskService {
     systemPrompt: string
   ): Promise<void> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，跳过 system prompt 同步')
+        return
+      }
+
       console.log('📝 更新 system prompt:', { taskId, promptLength: systemPrompt.length })
       
       const { error } = await supabase
@@ -120,6 +133,12 @@ export class TaskService {
     chatMessages: ChatMessage[]
   ): Promise<void> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，跳过聊天历史同步')
+        return
+      }
+
       console.log('💬 更新聊天历史:', { taskId, messagesCount: chatMessages.length })
       
       // 转换聊天消息格式
@@ -165,6 +184,12 @@ export class TaskService {
     modelParams: ModelParams
   ): Promise<void> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，跳过模型参数同步')
+        return
+      }
+
       console.log('⚙️ 更新模型参数:', { taskId, modelParams })
       
       const { error } = await supabase
@@ -190,6 +215,12 @@ export class TaskService {
    */
   static async getUserTasks(userId: string): Promise<TaskInfo[]> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，返回空任务列表')
+        return []
+      }
+
       console.log('📋 获取用户任务:', userId)
       
       const { data, error } = await supabase
@@ -217,6 +248,12 @@ export class TaskService {
    */
   static async getTaskById(userId: string, taskId: number): Promise<TaskInfo | null> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，无法获取任务详情')
+        return null
+      }
+
       console.log('🔍 获取任务详情:', { userId, taskId })
       
       const { data, error } = await supabase
@@ -249,6 +286,12 @@ export class TaskService {
    */
   static async deleteTask(userId: string, taskId: number): Promise<void> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，跳过任务删除')
+        return
+      }
+
       console.log('🗑️ 删除任务:', { userId, taskId })
       
       const { error } = await supabase
@@ -278,6 +321,12 @@ export class TaskService {
     taskName: string
   ): Promise<void> {
     try {
+      // 检查 Supabase 连接状态
+      if (!isSupabaseAvailable()) {
+        console.warn('⚠️ Supabase 不可用，跳过任务名称更新')
+        return
+      }
+
       console.log('📝 更新任务名称:', { taskId, taskName })
       
       const { error } = await supabase

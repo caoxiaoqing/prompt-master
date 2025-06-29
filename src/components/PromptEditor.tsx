@@ -95,18 +95,26 @@ const PromptEditor: React.FC = () => {
 
         // 如果是新任务且用户已登录，创建数据库记录
         if (user && state.currentTask && !state.currentTask.createdInDB) {
+          console.log('🔄 检测到新任务，准备创建数据库记录...', {
+            taskId: state.currentTask.id,
+            taskName: state.currentTask.name,
+            hasUser: !!user
+          })
+          
           const taskId = parseInt(state.currentTask.id);
           const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
           const defaultParams = getCurrentModelParams();
           
           createTask(taskId, state.currentTask.name, folderName, defaultParams)
             .then(() => {
+              console.log('✅ 任务数据库记录创建成功，更新本地状态')
               // 标记任务已在数据库中创建
               const updatedTask = { ...state.currentTask!, createdInDB: true };
               dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
             })
             .catch(error => {
               console.error('创建任务数据库记录失败:', error);
+              // 即使创建失败，也不影响用户继续使用
             });
         }
       }
@@ -258,6 +266,12 @@ const PromptEditor: React.FC = () => {
 
     // 立即同步模型参数到数据库
     if (state.currentTask && user) {
+      console.log('🔄 模型参数发生变化，准备同步到数据库...', {
+        taskId: state.currentTask.id,
+        newTemperature,
+        newMaxTokens
+      })
+      
       const updatedParams: ModelParams = {
         ...getCurrentModelParams(),
         temperature: newTemperature,
@@ -266,6 +280,7 @@ const PromptEditor: React.FC = () => {
       
       syncModelParams(updatedParams).catch(error => {
         console.error('同步模型参数失败:', error);
+        // 不阻断用户操作，只记录错误
       });
     }
   };

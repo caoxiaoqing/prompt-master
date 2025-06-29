@@ -86,7 +86,11 @@ const FolderSidebar: React.FC = () => {
     dispatch({ type: 'SET_CURRENT_TASK', payload: newTask });
     setShowCreateTask(null);
 
-    // 数据库记录将在 PromptEditor 中处理
+    console.log('✅ 新任务已创建，数据库记录将在 PromptEditor 中处理', {
+      taskId: newTask.id,
+      taskName: newTask.name,
+      createdInDB: newTask.createdInDB
+    });
   };
 
   const handleDeleteFolder = async (folderId: string) => {
@@ -121,12 +125,16 @@ const FolderSidebar: React.FC = () => {
 
       // 如果任务已在数据库中创建，则删除数据库记录
       if (user && task && task.createdInDB) {
+        console.log('🔄 删除任务数据库记录...', { taskId: task.id, taskName: task.name })
         try {
           await TaskService.deleteTask(user.id, parseInt(task.id));
           console.log('✅ 任务删除操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录任务删除操作失败:', error);
+          // 不阻断删除操作，只记录错误
         }
+      } else {
+        console.log('ℹ️ 任务未在数据库中创建或用户未登录，跳过数据库删除')
       }
     }
   };
@@ -163,12 +171,16 @@ const FolderSidebar: React.FC = () => {
 
       // 如果任务已在数据库中创建，则更新数据库记录
       if (user && task.createdInDB) {
+        console.log('🔄 更新任务名称到数据库...', { taskId: task.id, oldName: task.name, newName })
         try {
           await TaskService.updateTaskName(user.id, parseInt(task.id), newName);
           console.log('✅ 任务重命名操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录任务重命名操作失败:', error);
+          // 不阻断重命名操作，只记录错误
         }
+      } else {
+        console.log('ℹ️ 任务未在数据库中创建或用户未登录，跳过数据库更新')
       }
     }
     setEditingTask(null);

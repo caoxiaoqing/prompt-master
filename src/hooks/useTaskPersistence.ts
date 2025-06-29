@@ -48,11 +48,13 @@ export const useTaskPersistence = ({
       const currentTime = Date.now()
       const lastSyncTime = lastSyncTimeRef.current.systemPrompt
       
-      // 检查是否需要同步（内容有变化且距离上次同步超过10秒）
-      if (currentTime - lastSyncTime >= 10000) {
+      // 检查是否需要同步（距离上次同步超过10秒）
+      if (currentTime - lastSyncTime >= 10000 && systemPromptRef.current.trim()) {
         try {
+          console.log('🔄 自动同步 system prompt...', { taskId, length: systemPromptRef.current.length })
           await TaskService.updateSystemPrompt(user.id, taskId, systemPromptRef.current)
           lastSyncTimeRef.current.systemPrompt = currentTime
+          console.log('✅ System prompt 自动同步成功')
         } catch (error) {
           console.error('自动同步 system prompt 失败:', error)
         }
@@ -74,11 +76,13 @@ export const useTaskPersistence = ({
       const currentTime = Date.now()
       const lastSyncTime = lastSyncTimeRef.current.chatHistory
       
-      // 检查是否需要同步（内容有变化且距离上次同步超过10秒）
-      if (currentTime - lastSyncTime >= 10000) {
+      // 检查是否需要同步（距离上次同步超过10秒且有聊天记录）
+      if (currentTime - lastSyncTime >= 10000 && chatHistoryRef.current.length > 0) {
         try {
+          console.log('🔄 自动同步聊天历史...', { taskId, messagesCount: chatHistoryRef.current.length })
           await TaskService.updateChatHistory(user.id, taskId, chatHistoryRef.current)
           lastSyncTimeRef.current.chatHistory = currentTime
+          console.log('✅ 聊天历史自动同步成功')
         } catch (error) {
           console.error('自动同步聊天历史失败:', error)
         }
@@ -97,7 +101,9 @@ export const useTaskPersistence = ({
     if (!user || !taskId) return
 
     try {
+      console.log('🔄 立即同步模型参数...', { taskId, params: newParams })
       await TaskService.updateModelParams(user.id, taskId, newParams)
+      console.log('✅ 模型参数同步成功')
       if (onModelParamsUpdate) {
         onModelParamsUpdate(newParams)
       }
@@ -117,7 +123,9 @@ export const useTaskPersistence = ({
     if (!user) return
 
     try {
+      console.log('🔄 创建新任务数据库记录...', { taskId: newTaskId, taskName, folderName })
       await TaskService.createTask(user.id, newTaskId, taskName, folderName, defaultModelParams)
+      console.log('✅ 任务数据库记录创建成功')
     } catch (error) {
       console.error('创建任务失败:', error)
       throw error
@@ -129,18 +137,26 @@ export const useTaskPersistence = ({
     if (!user || !taskId) return
 
     try {
+      console.log('🔄 开始强制同步所有数据...', { taskId })
       const currentTime = Date.now()
       
       // 同步 system prompt
-      await TaskService.updateSystemPrompt(user.id, taskId, systemPromptRef.current)
-      lastSyncTimeRef.current.systemPrompt = currentTime
+      if (systemPromptRef.current.trim()) {
+        await TaskService.updateSystemPrompt(user.id, taskId, systemPromptRef.current)
+        lastSyncTimeRef.current.systemPrompt = currentTime
+        console.log('✅ System prompt 强制同步完成')
+      }
       
       // 同步聊天历史
-      await TaskService.updateChatHistory(user.id, taskId, chatHistoryRef.current)
-      lastSyncTimeRef.current.chatHistory = currentTime
+      if (chatHistoryRef.current.length > 0) {
+        await TaskService.updateChatHistory(user.id, taskId, chatHistoryRef.current)
+        lastSyncTimeRef.current.chatHistory = currentTime
+        console.log('✅ 聊天历史强制同步完成')
+      }
       
       // 同步模型参数
       await TaskService.updateModelParams(user.id, taskId, modelParamsRef.current)
+      console.log('✅ 模型参数强制同步完成')
       
       console.log('✅ 所有数据强制同步完成')
     } catch (error) {
