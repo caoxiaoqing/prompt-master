@@ -713,6 +713,9 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     formData.topP !== initialFormData.topP ||
     formData.temperature !== initialFormData.temperature;
 
+  // 对于编辑模式，还需要检查是否有实际变化
+  const canSave = isFormValid && (model ? hasChanges : true);
+
   // 获取字段的样式类名（根据验证状态）
   const getFieldClassName = (field: string, baseClassName: string): string => {
     const hasError = validationErrors[field as keyof typeof validationErrors];
@@ -950,9 +953,9 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           </button>
           <button
             onClick={handleSave}
-            disabled={!isFormValid || modalLoading}
+            disabled={!canSave || modalLoading}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              (!isFormValid || modalLoading)
+              (!canSave || modalLoading)
                 ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
                 : 'bg-blue-600 text-white hover:bg-blue-700'
             }`}
