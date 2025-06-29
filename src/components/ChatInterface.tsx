@@ -40,7 +40,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const { userInfo } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [streamingMessage, setStreamingMessage] = useState<string>('');
-  const [streamingMessage, setStreamingMessage] = useState<string>('');
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
