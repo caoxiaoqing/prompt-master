@@ -64,10 +64,17 @@ const FolderSidebar: React.FC = () => {
       }
     }
   };
+  // 生成唯一的任务 ID
+  const generateUniqueTaskId = (): string => {
+    // 使用时间戳 + 随机数确保唯一性
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 10000);
+    return `${timestamp}${random}`;
+  };
 
   const handleCreateTask = async (folderId: string, name: string) => {
     const newTask: PromptTask = {
-      id: Date.now().toString(),
+      id: generateUniqueTaskId(),
       name,
       content: '',
       folderId,

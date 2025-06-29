@@ -93,6 +93,14 @@ export class TaskService {
       }
       console.log('✅ 数据库连接测试通过')
 
+      // 🔍 检查任务是否已存在
+      console.log('🔍 检查任务是否已存在...', { taskId })
+      const existingTask = await TaskService.getTaskById(userId, taskId)
+      if (existingTask) {
+        console.log('ℹ️ 任务已存在，跳过创建:', { taskId, taskName: existingTask.task_name })
+        return existingTask
+      }
+      console.log('✅ 任务不存在，可以创建')
       console.log('📝 创建新任务记录:', { 
         userId, 
         taskId, 
@@ -133,6 +141,16 @@ export class TaskService {
       console.log('📤 数据库操作完成，检查结果...')
 
       if (error) {
+        // 如果是重复键错误，尝试获取现有记录
+        if (error.code === '23505' && error.message.includes('task_info_task_id_key')) {
+          console.log('⚠️ 检测到重复 task_id，尝试获取现有记录...', { taskId })
+          const existingTask = await TaskService.getTaskById(userId, taskId)
+          if (existingTask) {
+            console.log('✅ 找到现有任务记录，返回现有记录:', existingTask.task_name)
+            return existingTask
+          }
+        }
+        
         console.error('❌ 创建任务记录失败:', {
           error,
           code: error.code,

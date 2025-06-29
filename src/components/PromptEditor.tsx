@@ -143,6 +143,13 @@ const PromptEditor: React.FC = () => {
           });
           
           const taskId = parseInt(state.currentTask.id);
+          
+          // 检查 taskId 是否有效
+          if (isNaN(taskId) || taskId <= 0) {
+            console.error('❌ 无效的 taskId:', state.currentTask.id);
+            return;
+          }
+          
           const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
           const defaultParams = getCurrentModelParams();
           
@@ -172,8 +179,17 @@ const PromptEditor: React.FC = () => {
                 errorMessage: error.message,
                 errorStack: error.stack
               });
-              // 即使创建失败，也不影响用户继续使用
-              // 可以考虑显示一个非阻塞的错误提示
+              
+              // 如果不是重复键错误，可以考虑显示错误提示
+              if (!error.message?.includes('duplicate key')) {
+                console.warn('⚠️ 任务创建失败，但不影响用户使用:', error.message);
+                // 这里可以添加用户友好的错误提示
+              } else {
+                console.log('ℹ️ 任务可能已存在，标记为已创建');
+                // 如果是重复键错误，说明任务已存在，标记为已创建
+                const updatedTask = { ...state.currentTask!, createdInDB: true };
+                dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+              }
             });
         }
       }

@@ -145,6 +145,12 @@ export const useTaskPersistence = ({
           retryCount++
           console.error(`❌ 第 ${retryCount} 次创建尝试失败:`, error)
           
+          // 如果是重复键错误，不需要重试
+          if (error instanceof Error && error.message.includes('duplicate key')) {
+            console.log('ℹ️ 检测到重复键错误，任务可能已存在，停止重试')
+            return // 直接返回，不抛出错误
+          }
+          
           if (retryCount >= maxRetries) {
             throw error // 达到最大重试次数，抛出错误
           }
@@ -163,6 +169,14 @@ export const useTaskPersistence = ({
         taskName,
         folderName
       })
+      
+      // 如果是重复键错误，不抛出错误，让应用继续运行
+      if (error instanceof Error && error.message.includes('duplicate key')) {
+        console.log('ℹ️ 任务可能已存在，继续运行应用')
+        return
+      }
+      
+      // 其他错误仍然抛出
       throw error
     }
   }, [user])
