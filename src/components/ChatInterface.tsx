@@ -14,11 +14,11 @@ import {
   ArrowDown,
   AlertCircle
 } from 'lucide-react';
-import OpenAI from "openai";
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
+import { OpenAIService } from '../lib/openaiService';
 
 interface ChatInterfaceProps {
   systemPrompt: string;
@@ -164,16 +164,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // 创建 OpenAI 客户端实例
   const createOpenAIClient = (customModel: any) => {
     if (!customModel) {
-      console.error('❌ 无法创建 OpenAI 客户端: 未选择模型');
+      console.error('❌ 无法创建 OpenAI 客户端: 未选择模型', { customModel });
       return null;
     }
     
     try {
-      return new OpenAI({
-        baseURL: customModel.baseUrl,
-        apiKey: customModel.apiKey,
-        dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
+      console.log('🔑 准备创建 OpenAI 客户端:', { 
+        modelName: customModel.name,
+        baseUrl: customModel.baseUrl
       });
+      return true; // 只返回一个标记，实际客户端将在需要时创建
     } catch (error) {
       console.error('❌ 创建 OpenAI 客户端失败:', error);
       return null;
@@ -233,8 +233,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       ];
 
       // 创建 OpenAI 客户端
-      const openai = createOpenAIClient(state.selectedCustomModel);
-      if (!openai) {
+      const canCreateClient = createOpenAIClient(state.selectedCustomModel);
+      if (!canCreateClient) {
         throw new Error('无法创建 OpenAI 客户端，请检查模型配置');
       }
       
@@ -244,34 +244,18 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       });
       
       const startTime = Date.now();
-      
-      // 调用 OpenAI API
-      const completion = await openai.chat.completions.create({
-        messages: conversationContext,
-        model: state.selectedCustomModel.name,
-        temperature: temperature,
-        max_tokens: maxTokens,
-        top_p: state.selectedCustomModel.topP || 1.0,
-        top_k: state.selectedCustomModel.topK || 50
-      });
-      
-      const responseTime = Date.now() - startTime;
-      
-      console.log('✅ OpenAI API 响应成功:', {
-        responseTime: `${responseTime}ms`,
-        model: state.selectedCustomModel.name,
-        hasChoices: completion.choices.length > 0
-      });
-      
-      // 提取响应内容
-      const responseContent = completion.choices[0]?.message?.content || '无响应内容';
-      
-      // 计算 token 使用情况
-      const tokenUsage = completion.usage ? {
-        prompt: completion.usage.prompt_tokens,
-        completion: completion.usage.completion_tokens,
-        total: completion.usage.total_tokens
-      } : { prompt: 0, completion: 0, total: 0 };
+
+      // 使用 OpenAIService 发送请求
+      const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
+        state.selectedCustomModel.baseUrl,
+        state.selectedCustomModel.apiKey,
+        conversationContext,
+        state.selectedCustomModel.name,
+        temperature,
+        maxTokens,
+        state.selectedCustomModel.topP || 1.0,
+        state.selectedCustomModel.topK || 50
+      );
 
       const assistantMessage: ChatMessage = {
         id: loadingMessage.id,
