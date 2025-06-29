@@ -298,87 +298,11 @@ img {
   z-index: 100003 !important;
 }
 
-/* 确保用户设置相关弹窗的层级管理 */
-.z-user-settings-nested-modal {
-  z-index: 100002 !important;
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  /* 关键修复：防止弹窗跳动和闪烁 */
-  contain: layout style !important;
-  transform: translateZ(0) !important;
-  backface-visibility: hidden !important;
-  /* 防止鼠标事件导致的重排 */
-  pointer-events: auto !important;
-  /* 优化渲染性能 */
-  will-change: opacity !important;
-  /* 防止任何可能的布局变化 */
-  overflow: hidden !important;
-}
-
-/* 防止弹窗内容区域的鼠标事件导致跳动 */
-.z-user-settings-nested-content {
-  z-index: 100003 !important;
-  /* 确保内容区域稳定 */
-  contain: layout style !important;
-  transform: translateZ(0) !important;
-  backface-visibility: hidden !important;
-  /* 防止内容变化时的布局抖动 */
-  position: relative !important;
-  /* 优化动画性能 */
-  will-change: transform, opacity !important;
-}
-
-/* 防止弹窗背景的鼠标事件导致问题 */
-.modal-backdrop-stable {
-  /* 确保背景稳定 */
-  contain: layout !important;
-  transform: translateZ(0) !important;
-  backface-visibility: hidden !important;
-  /* 防止鼠标事件导致的重排 */
-  pointer-events: auto !important;
-  /* 确保背景不会影响其他元素 */
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-}
-
-/* 防止弹窗居中容器的布局变化 */
-.modal-center-container {
-  /* 确保居中容器稳定 */
-  contain: layout !important;
-  transform: translateZ(0) !important;
-  /* 防止指针事件影响布局 */
-  pointer-events: none !important;
-  /* 确保容器不会影响其他元素 */
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  /* 使用 flexbox 居中 */
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  /* 添加内边距 */
-  padding: 1rem !important;
-}
-
 /* 模型配置对话框滚动条样式 */
 .model-config-modal-content {
   /* 自定义滚动条样式 */
   scrollbar-width: thin;
   scrollbar-color: rgba(156, 163, 175, 0.5) transparent;
-  /* 关键修复：防止滚动时的布局变化 */
-  contain: layout !important;
-  /* 优化滚动性能 */
-  will-change: scroll-position !important;
-  /* 确保滚动区域稳定 */
-  transform: translateZ(0) !important;
 }
 
 .model-config-modal-content::-webkit-scrollbar {
