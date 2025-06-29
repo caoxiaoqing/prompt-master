@@ -53,24 +53,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } else {
       setMessages([]);
     }
-  }, [state.currentTask?.id]);
+  }, [state.currentTask?.id]); // 移除 dispatch 依赖，避免无限循环
 
   // 当聊天历史变化时，自动保存到当前任务并通知父组件
   useEffect(() => {
-    if (state.currentTask && messages.length > 0) {
-      const updatedTask = {
-        ...state.currentTask,
-        currentChatHistory: messages.filter(m => !m.isLoading),
-        updatedAt: new Date()
-      };
-      dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+    // 关键修复：添加条件检查，避免无限循环
+    if (state.currentTask && messages.length > 0 && !messages.some(m => m.isLoading)) {
+      // 检查消息是否真的发生了变化
+      const currentChatHistory = state.currentTask.currentChatHistory || [];
+      const messagesChanged = JSON.stringify(messages) !== JSON.stringify(currentChatHistory);
+      
+      if (messagesChanged) {
+        console.log('💾 聊天历史发生变化，自动保存到任务');
+        const updatedTask = {
+          ...state.currentTask,
+          currentChatHistory: messages,
+          updatedAt: new Date()
+        };
+        dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+      }
     }
     
     // 通知父组件聊天历史变化
     if (onChatHistoryChange) {
-      onChatHistoryChange(messages.filter(m => !m.isLoading));
+      const filteredMessages = messages.filter(m => !m.isLoading);
+      onChatHistoryChange(filteredMessages);
     }
-  }, [messages, state.currentTask?.id, dispatch, onChatHistoryChange]);
+  }, [messages, state.currentTask?.id]); // 移除 dispatch 和 onChatHistoryChange 依赖
+
+  // 单独处理任务更新，避免与消息更新形成循环
+  const updateTaskWithMessages = useCallback((newMessages: ChatMessage[]) => {
+    if (state.currentTask) {
+      const updatedTask = {
+        ...state.currentTask,
+        currentChatHistory: newMessages.filter(m => !m.isLoading),
+        updatedAt: new Date()
+      };
+      dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+    }
+  }, [state.currentTask?.id, dispatch]);
 
   // 监听滚动事件，显示/隐藏滚动到底部按钮
   useEffect(() => {
@@ -134,6 +155,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     setMessages(prev => [...prev, userMessage, loadingMessage]);
     setUserInput('');
     setIsLoading(true);
+    
+    // 立即更新任务状态，包含新的用户消息
+    updateTaskWithMessages([...messages, userMessage, loadingMessage]);
 
     // 发送消息后立即滚动到底部
     setTimeout(() => scrollToBottom(), 100);
@@ -177,16 +201,24 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         )
       );
 
-      // 更新当前任务的响应时间和token使用情况
-      if (state.currentTask) {
-        const updatedTask = {
-          ...state.currentTask,
-          responseTime: result.responseTime,
-          tokenUsage: result.tokenUsage,
-          updatedAt: new Date()
-        };
-        dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-      }
+      // 更新任务状态，包含完整的聊天历史和响应数据
+      const finalMessages = messages.map(msg => 
+        msg.id === loadingMessage.id ? assistantMessage : msg
+      );
+      updateTaskWithMessages(finalMessages);
+      
+      // 单独更新任务的响应时间和token使用情况
+      setTimeout(() => {
+        if (state.currentTask) {
+          const updatedTask = {
+            ...state.currentTask,
+            responseTime: result.responseTime,
+            tokenUsage: result.tokenUsage,
+            updatedAt: new Date()
+          };
+          dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+        }
+      }, 100);
 
       // 响应完成后再次确保输入框聚焦
       setTimeout(() => {
@@ -232,15 +264,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const clearChat = () => {
     if (confirm('确定要清空聊天记录吗？')) {
       setMessages([]);
-      // 清空当前任务的聊天历史
-      if (state.currentTask) {
-        const updatedTask = {
-          ...state.currentTask,
-          currentChatHistory: [],
-          updatedAt: new Date()
-        };
-        dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-      }
+      // 使用统一的更新方法清空聊天历史
+      updateTaskWithMessages([]);
       
       // 清空后重新聚焦输入框
       setTimeout(() => {
