@@ -230,8 +230,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       console.log('📝 调用数据库添加操作...');
       
       // 调用数据库添加操作
-      const result = await Promise.race([
-        authService.addCustomModel(user.id, {
+      const result = await authService.addCustomModel(user.id, {
         name: modelData.name,
         baseUrl: modelData.baseUrl,
         apiKey: modelData.apiKey,
@@ -239,10 +238,8 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
         topP: modelData.parameters.topP,
         temperature: modelData.parameters.temperature
       });
-        timeoutPromise
-      ]);
       
-      const { model: newModel } = result as any;
+      const { model: newModel } = result;
       console.log('✅ 数据库保存成功:', newModel);
       
       // 更新本地状态
