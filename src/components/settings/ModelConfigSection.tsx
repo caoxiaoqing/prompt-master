@@ -97,29 +97,39 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
     try {
       setLoading(true);
       
+      console.log('🗑️ 开始删除模型:', modelId);
+      
       // 调用数据库删除操作
       const { userInfo: updatedUserInfo } = await authService.deleteCustomModel(user.id, modelId);
       
-      // 更新本地状态
-      const updatedModels = models.filter(m => m.id !== modelId);
-      setModels(updatedModels);
+      console.log('✅ 数据库删除成功，更新本地状态');
       
-      showNotification('success', '模型配置已删除');
-      
-      // 刷新用户信息以获取最新数据
+      // 强制刷新用户信息以获取最新数据
       refreshUserInfo();
       
-      // 如果删除的是默认模型且还有其他模型，更新本地状态
-      if (updatedModels.length > 0) {
-        const newDefaultModel = updatedModels.find(m => m.isDefault);
-        if (!newDefaultModel && updatedModels.length > 0) {
-          // 如果没有默认模型了，设置第一个为默认
-          setModels(prev => prev.map((m, index) => ({
-            ...m,
-            isDefault: index === 0
-          })));
-        }
+      // 立即更新本地状态 - 从数据库返回的最新数据
+      if (updatedUserInfo && updatedUserInfo.custom_models) {
+        const updatedModels: ModelConfig[] = updatedUserInfo.custom_models.map((model: any) => ({
+          id: model.id,
+          name: model.name,
+          baseUrl: model.baseUrl,
+          apiKey: model.apiKey,
+          parameters: {
+            topK: model.topK,
+            topP: model.topP,
+            temperature: model.temperature
+          },
+          isDefault: model.isDefault || false,
+          createdAt: new Date(model.createdAt)
+        }));
+        setModels(updatedModels);
+      } else {
+        // 如果没有返回数据或者 custom_models 为空，清空本地状态
+        setModels([]);
       }
+      
+      showNotification('success', '模型配置已删除');
+      console.log('✅ 模型删除完成');
     } catch (error) {
       console.error('Delete model error:', error);
       showNotification('error', error instanceof Error ? error.message : '删除失败，请稍后重试');
