@@ -407,7 +407,7 @@ const FolderSidebar: React.FC = () => {
 
       {/* 底部统计栏 - 显示文件夹数、任务数和数据状态 */}
       <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0 space-y-2">
-        <div className="flex items-center justify-between text-xs mb-1">
+        <div className="flex items-center justify-between text-xs">
           {/* 左侧统计信息 */}
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2">
@@ -428,10 +428,22 @@ const FolderSidebar: React.FC = () => {
               </span>
             </div>
           </div>
+          
+          {/* 右侧数据状态 */}
+          <div className="flex items-center space-x-2">
+            {state.isDataLoaded ? (
+              <div className="flex items-center space-x-1 text-green-600 dark:text-green-400">
+                <Database size={12} />
+                <span>已同步</span>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-1 text-gray-500">
+                <Database size={12} />
+                <span>本地</span>
+              </div>
+            )}
+          </div>
         </div>
-        
-        {/* 同步状态指示器 */}
-        <SyncStatusIndicator />
       </div>
 
       {/* Hidden file input for import */}

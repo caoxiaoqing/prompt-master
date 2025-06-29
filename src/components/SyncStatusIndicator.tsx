@@ -14,7 +14,7 @@ import {
 import { syncService, SyncStatus, SyncEvent } from '../lib/syncService'
 import { useAuth } from '../contexts/AuthContext'
 
-const SyncStatusIndicator: React.FC = () => {
+export const SyncStatusIndicator: React.FC = () => {
   const { user } = useAuth()
   const [syncState, setSyncState] = useState({
     status: SyncStatus.IDLE,
@@ -193,26 +193,20 @@ const SyncStatusIndicator: React.FC = () => {
   const queueStatus = syncService.getQueueStatus()
 
   return (
-    <div className="relative w-full">
+    <div className="relative">
       {/* 状态指示器 */}
       <button
         onClick={() => setShowDetails(!showDetails)}
-        className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${getStatusColor()} border border-gray-200 dark:border-gray-600`}
+        className={`flex items-center space-x-1 px-2 py-1 rounded transition-colors hover:bg-gray-100 dark:hover:bg-gray-700 ${getStatusColor()}`}
         title={`同步状态: ${getStatusText()}`}
       >
-        <div className="flex items-center space-x-2">
-          {getStatusIcon()}
-          <span className="text-sm font-medium">{getStatusText()}</span>
-          {syncState.queueLength > 0 && (
-            <span className="ml-1 px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs">
-              {syncState.queueLength}
-            </span>
-          )}
-        </div>
-        <div className="flex items-center space-x-2 text-xs text-gray-500">
-          <Clock size={12} />
-          <span>{formatLastSyncTime(syncState.lastSyncTime)}</span>
-        </div>
+        {getStatusIcon()}
+        <span className="text-xs">{getStatusText()}</span>
+        {syncState.queueLength > 0 && (
+          <span className="px-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded-full text-xs">
+            {syncState.queueLength}
+          </span>
+        )}
       </button>
 
       {/* 详细信息面板 */}
@@ -221,8 +215,8 @@ const SyncStatusIndicator: React.FC = () => {
           <motion.div
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: -10 }}
-            className="absolute right-0 bottom-full mb-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50"
+            exit={{ opacity: 0, scale: 0.95, y: 10 }}
+            className="absolute right-0 top-full mt-2 w-80 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50"
           >
             {/* 头部 */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
@@ -356,5 +350,3 @@ const SyncStatusIndicator: React.FC = () => {
     </div>
   )
 }
-
-export default SyncStatusIndicator
