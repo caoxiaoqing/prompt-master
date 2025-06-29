@@ -190,6 +190,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       setModels(prev => [...prev, newModelConfig]);
       showNotification('success', '模型配置已添加');
     } catch (error) {
+      setLoading(false); // 确保在错误情况下也重置loading状态
       console.error('Save model error:', error);
       showNotification('error', error instanceof Error ? error.message : '保存失败，请稍后重试');
     } finally {
@@ -229,6 +230,7 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       
       showNotification('success', '模型配置已更新');
     } catch (error) {
+      setLoading(false); // 确保在错误情况下也重置loading状态
       console.error('Update model error:', error);
       showNotification('error', error instanceof Error ? error.message : '更新失败，请稍后重试');
     } finally {
@@ -404,8 +406,12 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
           <ModelConfigModal
             model={editingModel}
             onSave={(modelData) => {
+              // 先关闭模态框，避免状态冲突
+              setShowAddModal(false);
+              setEditingModel(null);
+              
               if (editingModel) {
-                // 更新现有模型
+                // 更新现有模型 - 延迟执行避免状态冲突
                 handleUpdateModel(editingModel.id, modelData);
               } else {
                 // 添加新模型
@@ -413,7 +419,10 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
               }
               setShowAddModal(false);
             }}
-            onClose={() => setShowAddModal(false)}
+            onClose={() => {
+              setShowAddModal(false);
+              setEditingModel(null);
+            }}
             loading={loading}
           />
         )}
@@ -456,6 +465,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   const [showApiKey, setShowApiKey] = useState(false);
 
   const handleInputChange = (field: string, value: string | number) => {
+    if (loading) return; // 防止在保存过程中修改表单
     setFormData(prev => ({ ...prev, [field]: value }));
   };
 
@@ -465,6 +475,10 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
   };
 
   const handleSave = () => {
+    // 防止重复提交
+    if (loading) return;
+    
+    // 验证表单
     if (!formData.name.trim() || !formData.baseUrl.trim() || !formData.apiKey.trim()) {
       return;
     }
@@ -480,6 +494,15 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
       }
     });
   };
+
+  // 当模态框关闭时重置状态
+  React.useEffect(() => {
+    return () => {
+      // 组件卸载时重置状态
+      setShowApiKey(false);
+      setFormData(initialFormData);
+    };
+  }, []);
 
   const isFormValid = 
     formData.name.trim().length > 0 &&
@@ -506,7 +529,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
         position: 'fixed',
         top: 0,
         left: 0,
-        right: 0,
+        right: 0, 
         bottom: 0
       }}
       onClick={onClose}
@@ -533,6 +556,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           <button
             onClick={onClose}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+            disabled={loading}
           >
             <X size={20} />
           </button>
@@ -559,6 +583,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 onChange={(e) => handleInputChange('name', e.target.value)}
                 placeholder="例如：GPT-4 Custom"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading}
               />
             </div>
 
@@ -572,6 +597,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                 onChange={(e) => handleInputChange('baseUrl', e.target.value)}
                 placeholder="https://api.openai.com/v1"
                 className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                disabled={loading}
               />
             </div>
 
@@ -586,11 +612,13 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   onChange={(e) => handleInputChange('apiKey', e.target.value)}
                   placeholder="sk-..."
                   className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={loading}
                 />
                 <button
                   type="button"
                   onClick={() => setShowApiKey(!showApiKey)}
                   className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+                  disabled={loading}
                 >
                   {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
@@ -614,6 +642,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.topK}
                   onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={loading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   限制候选词汇数量 (1-100)
@@ -632,6 +661,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.topP}
                   onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={loading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   核采样概率 (0.0-1.0)
@@ -650,6 +680,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
                   value={formData.temperature}
                   onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
                   className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  disabled={loading}
                 />
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
                   输出随机性 (0.0-2.0)
@@ -673,6 +704,7 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
           <div className="flex items-center space-x-3">
           <button
             onClick={onClose}
+            disabled={loading}
             className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
           >
             取消
