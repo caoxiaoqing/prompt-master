@@ -246,53 +246,58 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const startTime = Date.now();
 
       // 使用 OpenAIService 发送请求
-      const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
-        state.selectedCustomModel.baseUrl,
-        state.selectedCustomModel.apiKey,
-        conversationContext,
-        state.selectedCustomModel.name,
-        temperature,
-        maxTokens,
-        state.selectedCustomModel.topP || 1.0,
-        state.selectedCustomModel.topK || 50
-      );
+      try {
+        const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
+          state.selectedCustomModel.baseUrl,
+          state.selectedCustomModel.apiKey,
+          conversationContext,
+          state.selectedCustomModel.name,
+          temperature,
+          maxTokens,
+          state.selectedCustomModel.topP || 1.0,
+          state.selectedCustomModel.topK || 50
+        );
 
-      const assistantMessage: ChatMessage = {
-        id: loadingMessage.id,
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
-        tokenUsage: tokenUsage,
-        responseTime: responseTime
-      };
+        const assistantMessage: ChatMessage = {
+          id: loadingMessage.id,
+          role: 'assistant',
+          content: responseContent,
+          timestamp: new Date(),
+          tokenUsage: tokenUsage,
+          responseTime: responseTime
+        };
 
-      setMessages(prev => 
-        prev.map(msg => 
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === loadingMessage.id ? assistantMessage : msg
+          )
+        );
+
+        // 更新任务状态，包含完整的聊天历史和响应数据
+        const finalMessages = messages.map(msg => 
           msg.id === loadingMessage.id ? assistantMessage : msg
-        )
-      );
-
-      // 更新任务状态，包含完整的聊天历史和响应数据
-      const finalMessages = messages.map(msg => 
-        msg.id === loadingMessage.id ? assistantMessage : msg
-      );
-      updateTaskWithMessages(finalMessages);
-      
-      // 单独更新任务的响应时间和token使用情况
-      setTimeout(() => {
-        if (state.currentTask) {
-          const updatedTokenUsage = tokenUsage;
-          const updatedResponseTime = responseTime;
-          
-          const updatedTask = {
-            ...state.currentTask,
-            responseTime: updatedResponseTime,
-            tokenUsage: updatedTokenUsage,
-            updatedAt: new Date()
-          };
-          dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-        }
-      }, 100);
+        );
+        updateTaskWithMessages(finalMessages);
+        
+        // 单独更新任务的响应时间和token使用情况
+        setTimeout(() => {
+          if (state.currentTask) {
+            const updatedTokenUsage = tokenUsage;
+            const updatedResponseTime = responseTime;
+            
+            const updatedTask = {
+              ...state.currentTask,
+              responseTime: updatedResponseTime,
+              tokenUsage: updatedTokenUsage,
+              updatedAt: new Date()
+            };
+            dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+          }
+        }, 100);
+      } catch (apiError) {
+        console.error('API 调用失败:', apiError);
+        throw apiError;
+      }
 
       // 响应完成后再次确保输入框聚焦
       setTimeout(() => {

@@ -170,9 +170,11 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       console.log('🧪 开始测试模型连接:', { modelName: model.name, baseUrl: model.baseUrl });
       
       // 动态导入 OpenAI
-      const { default: OpenAI } = await import('openai');
-      
       try {
+        // 动态导入 OpenAI
+        const OpenAIModule = await import('openai');
+        const OpenAI = OpenAIModule.default;
+      
         // 创建 OpenAI 客户端
         const openai = new OpenAI({
           baseURL: model.baseUrl,

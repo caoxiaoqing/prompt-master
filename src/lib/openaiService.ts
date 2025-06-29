@@ -1,26 +1,34 @@
-import OpenAI from 'openai';
 import { ChatMessage } from '../types';
 
 // OpenAI API 服务
 export class OpenAIService {
-  private static openaiInstances: Map<string, OpenAI> = new Map();
+  private static openaiInstances: Map<string, any> = new Map();
 
   /**
    * 获取 OpenAI 客户端实例
    */
-  static getClient(baseUrl: string, apiKey: string): OpenAI {
+  static async getClient(baseUrl: string, apiKey: string): Promise<any> {
     const instanceKey = `${baseUrl}:${apiKey}`;
     
     if (!this.openaiInstances.has(instanceKey)) {
       console.log('🔑 创建新的 OpenAI 客户端实例:', { baseUrl });
       
-      const client = new OpenAI({
-        baseURL: baseUrl,
-        apiKey: apiKey,
-        dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
-      });
-      
-      this.openaiInstances.set(instanceKey, client);
+      try {
+        // 动态导入 OpenAI
+        const OpenAIModule = await import('openai');
+        const OpenAI = OpenAIModule.default;
+        
+        const client = new OpenAI({
+          baseURL: baseUrl,
+          apiKey: apiKey,
+          dangerouslyAllowBrowser: true // 允许在浏览器中使用 API 密钥
+        });
+        
+        this.openaiInstances.set(instanceKey, client);
+      } catch (error) {
+        console.error('❌ 创建 OpenAI 客户端失败:', error);
+        throw new Error(`创建 OpenAI 客户端失败: ${error instanceof Error ? error.message : '未知错误'}`);
+      }
     }
     
     return this.openaiInstances.get(instanceKey)!;
@@ -54,7 +62,7 @@ export class OpenAIService {
       const startTime = Date.now();
       
       // 获取 OpenAI 客户端
-      const openai = this.getClient(baseUrl, apiKey);
+      const openai = await this.getClient(baseUrl, apiKey);
       
       // 发送请求
       const completion = await openai.chat.completions.create({
@@ -63,7 +71,8 @@ export class OpenAIService {
         temperature,
         max_tokens: maxTokens,
         top_p: topP,
-        top_k: topK
+        // top_k 参数可能不是所有模型都支持，如果不支持可能会导致错误
+        ...(topK ? { top_k: topK } : {})
       });
       
       const responseTime = Date.now() - startTime;
@@ -117,7 +126,7 @@ export class OpenAIService {
       console.log('🧪 测试 OpenAI 连接:', { baseUrl, modelName });
       
       // 获取 OpenAI 客户端
-      const openai = this.getClient(baseUrl, apiKey);
+      const openai = await this.getClient(baseUrl, apiKey);
       
       // 发送简单的测试请求
       const completion = await openai.chat.completions.create({
