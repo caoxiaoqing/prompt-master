@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import Modal from '../common/Modal';
 import { 
   Plus, 
   Edit3, 
@@ -291,47 +292,52 @@ const ModelConfigSection: React.FC<ModelConfigSectionProps> = ({
       </div>
 
       {/* Add/Edit Model Modal */}
-      <AnimatePresence>
-        {showAddModal && (
-          <ModelConfigModal
-            model={editingModel}
-            onSave={(modelData) => {
-              if (editingModel) {
-                // Update existing model
-                setModels(prev => prev.map(m => 
-                  m.id === editingModel.id ? { ...modelData, id: editingModel.id } : m
-                ));
-                showNotification('success', '模型配置已更新');
-              } else {
-                // Add new model
-                const newModel: ModelConfig = {
-                  ...modelData,
-                  id: Date.now().toString(),
-                  createdAt: new Date(),
-                  isDefault: models.length === 0
-                };
-                setModels(prev => [...prev, newModel]);
-                showNotification('success', '模型配置已添加');
-              }
-              setShowAddModal(false);
-            }}
-            onClose={() => setShowAddModal(false)}
-            loading={loading}
-          />
-        )}
-      </AnimatePresence>
+      <Modal
+        isOpen={showAddModal}
+        onClose={() => setShowAddModal(false)}
+        title={editingModel ? '编辑模型配置' : '添加新模型'}
+        size="lg"
+        closeOnOverlayClick={true}
+        closeOnEscape={true}
+      >
+        <ModelConfigModalContent
+          model={editingModel}
+          onSave={(modelData) => {
+            if (editingModel) {
+              // Update existing model
+              setModels(prev => prev.map(m => 
+                m.id === editingModel.id ? { ...modelData, id: editingModel.id } : m
+              ));
+              showNotification('success', '模型配置已更新');
+            } else {
+              // Add new model
+              const newModel: ModelConfig = {
+                ...modelData,
+                id: Date.now().toString(),
+                createdAt: new Date(),
+                isDefault: models.length === 0
+              };
+              setModels(prev => [...prev, newModel]);
+              showNotification('success', '模型配置已添加');
+            }
+            setShowAddModal(false);
+          }}
+          onClose={() => setShowAddModal(false)}
+          loading={loading}
+        />
+      </Modal>
     </motion.div>
   );
 };
 
-interface ModelConfigModalProps {
+interface ModelConfigModalContentProps {
   model: ModelConfig | null;
   onSave: (model: Omit<ModelConfig, 'id' | 'createdAt' | 'isDefault'>) => void;
   onClose: () => void;
   loading: boolean;
 }
 
-const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
+const ModelConfigModalContent: React.FC<ModelConfigModalContentProps> = ({
   model,
   onSave,
   onClose,
@@ -398,207 +404,165 @@ const ModelConfigModal: React.FC<ModelConfigModalProps> = ({
     formData.temperature !== initialFormData.temperature;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4"
-      style={{
-        zIndex: 100002,
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0
-      }}
-      onClick={onClose}
-    >
-      <motion.div
-        initial={{ scale: 0.95, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        exit={{ scale: 0.95, opacity: 0 }}
-        onClick={(e) => e.stopPropagation()}
-        className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-2xl border border-gray-200 dark:border-gray-700"
+    <div className="flex flex-col h-full">
+      {/* Content - 可滚动区域 */}
+      <div 
+        className="flex-1 overflow-y-auto p-6 space-y-6 model-config-modal-content"
         style={{
-          maxHeight: '80vh',
-          zIndex: 100003,
-          position: 'relative',
-          display: 'flex',
-          flexDirection: 'column'
+          scrollBehavior: 'smooth',
+          scrollbarWidth: 'thin',
+          scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent'
         }}
       >
-        {/* Header - 固定不滚动 */}
-        <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-            {model ? '编辑模型配置' : '添加新模型'}
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            <X size={20} />
-          </button>
-        </div>
-
-        {/* Content - 可滚动区域 */}
-        <div 
-          className="flex-1 overflow-y-auto p-6 space-y-6 model-config-modal-content"
-          style={{
-            scrollBehavior: 'smooth',
-            scrollbarWidth: 'thin',
-            scrollbarColor: 'rgba(156, 163, 175, 0.5) transparent'
-          }}
-        >
-          {/* Basic Information */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                模型名称 *
-              </label>
-              <input
-                type="text"
-                value={formData.name}
-                onChange={(e) => handleInputChange('name', e.target.value)}
-                placeholder="例如：GPT-4 Custom"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                Base URL *
-              </label>
-              <input
-                type="url"
-                value={formData.baseUrl}
-                onChange={(e) => handleInputChange('baseUrl', e.target.value)}
-                placeholder="https://api.openai.com/v1"
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                API Key *
-              </label>
-              <div className="relative">
-                <input
-                  type={showApiKey ? 'text' : 'password'}
-                  value={formData.apiKey}
-                  onChange={(e) => handleInputChange('apiKey', e.target.value)}
-                  placeholder="sk-..."
-                  className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowApiKey(!showApiKey)}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                >
-                  {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                </button>
-              </div>
-            </div>
+        {/* Basic Information */}
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              模型名称 *
+            </label>
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => handleInputChange('name', e.target.value)}
+              placeholder="例如：GPT-4 Custom"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
           </div>
 
-          {/* Model Parameters */}
-          <div className="space-y-4">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white">模型参数</h3>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Top-K
-                </label>
-                <input
-                  type="number"
-                  min="1"
-                  max="100"
-                  value={formData.topK}
-                  onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  限制候选词汇数量 (1-100)
-                </p>
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              Base URL *
+            </label>
+            <input
+              type="url"
+              value={formData.baseUrl}
+              onChange={(e) => handleInputChange('baseUrl', e.target.value)}
+              placeholder="https://api.openai.com/v1"
+              className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            />
+          </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Top-P
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="1"
-                  step="0.1"
-                  value={formData.topP}
-                  onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  核采样概率 (0.0-1.0)
-                </p>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Temperature
-                </label>
-                <input
-                  type="number"
-                  min="0"
-                  max="2"
-                  step="0.1"
-                  value={formData.temperature}
-                  onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  输出随机性 (0.0-2.0)
-                </p>
-              </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              API Key *
+            </label>
+            <div className="relative">
+              <input
+                type={showApiKey ? 'text' : 'password'}
+                value={formData.apiKey}
+                onChange={(e) => handleInputChange('apiKey', e.target.value)}
+                placeholder="sk-..."
+                className="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+              >
+                {showApiKey ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
             </div>
           </div>
         </div>
 
-        {/* Footer - 固定不滚动 */}
-        <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
-          <button
-            onClick={handleResetForm}
-            disabled={!hasChanges || loading}
-            className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            <RotateCcw size={16} />
-            <span>重置</span>
-          </button>
+        {/* Model Parameters */}
+        <div className="space-y-4">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white">模型参数</h3>
           
-          <div className="flex items-center space-x-3">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
-          >
-            取消
-          </button>
-          <button
-            onClick={handleSave}
-            disabled={!isFormValid || !hasChanges || loading}
-            className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-              !isFormValid || !hasChanges || loading
-                ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                : 'bg-blue-600 text-white hover:bg-blue-700'
-            }`}
-          >
-            {loading ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Save size={16} />
-            )}
-            <span>{loading ? '保存中...' : '保存配置'}</span>
-          </button>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Top-K
+              </label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={formData.topK}
+                onChange={(e) => handleInputChange('topK', parseInt(e.target.value) || 50)}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                限制候选词汇数量 (1-100)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Top-P
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="1"
+                step="0.1"
+                value={formData.topP}
+                onChange={(e) => handleInputChange('topP', parseFloat(e.target.value) || 1.0)}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                核采样概率 (0.0-1.0)
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Temperature
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="2"
+                step="0.1"
+                value={formData.temperature}
+                onChange={(e) => handleInputChange('temperature', parseFloat(e.target.value) || 0.8)}
+                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              />
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                输出随机性 (0.0-2.0)
+              </p>
+            </div>
           </div>
         </div>
-      </motion.div>
-    </motion.div>
+      </div>
+
+      {/* Footer - 固定不滚动 */}
+      <div className="flex items-center justify-between p-6 border-t border-gray-200 dark:border-gray-700 flex-shrink-0">
+        <button
+          onClick={handleResetForm}
+          disabled={!hasChanges || loading}
+          className="flex items-center space-x-2 px-4 py-2 text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        >
+          <RotateCcw size={16} />
+          <span>重置</span>
+        </button>
+        
+        <div className="flex items-center space-x-3">
+        <button
+          onClick={onClose}
+          className="px-4 py-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+        >
+          取消
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={!isFormValid || !hasChanges || loading}
+          className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+            !isFormValid || !hasChanges || loading
+              ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          }`}
+        >
+          {loading ? (
+            <Loader2 size={16} className="animate-spin" />
+          ) : (
+            <Save size={16} />
+          )}
+          <span>{loading ? '保存中...' : '保存配置'}</span>
+        </button>
+        </div>
+      </div>
+    </div>
   );
 };
 
