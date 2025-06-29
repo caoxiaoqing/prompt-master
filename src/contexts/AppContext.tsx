@@ -306,7 +306,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const { user } = useAuth();
 
   // 🔄 数据同步到数据库的函数
-  const syncToDatabase = async () => {
+  const syncToDatabase = async (force = false) => {
     if (!user || state.isSyncing) return;
 
     try {
@@ -368,18 +368,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dispatch({ type: 'SET_DATA_LOADED', payload: false });
     }
   }, [user, state.isDataLoaded]);
-
-  // 🔄 监听数据变化，定时同步到数据库（5秒一次）
-  useEffect(() => {
-    if (!user || !state.isDataLoaded || state.isSyncing) return;
-
-    // 防抖：延迟同步，避免频繁操作
-    const timeoutId = setTimeout(() => {
-      syncToDatabase();
-    }, 5000); // 修改为5秒后同步
-
-    return () => clearTimeout(timeoutId);
-  }, [state.folders, state.tasks, user, state.isDataLoaded, state.isSyncing]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, syncToDatabase }}>
