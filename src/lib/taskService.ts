@@ -47,22 +47,35 @@ export class TaskService {
     try {
       console.log('🧪 测试数据库连接...', { userId })
       
-      // 尝试执行一个简单的查询
-      const { data, error } = await supabase
-        .from('task_info')
-        .select('count')
+      // 添加超时机制，防止连接测试卡住
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('Connection test timeout')), 5000)
+      })
+      
+      // 使用更简单的方法：尝试查询用户信息表
+      const queryPromise = supabase
+        .from('user_info')
+        .select('uuid')
         .eq('uuid', userId)
-        .limit(1)
+        .single()
+      
+      const { data, error } = await Promise.race([queryPromise, timeoutPromise])
       
       if (error) {
         console.error('❌ 数据库连接测试失败:', error)
         return false
       }
       
-      console.log('✅ 数据库连接测试成功:', data)
+      console.log('✅ 数据库连接测试成功，用户存在:', !!data)
       return true
     } catch (error) {
       console.error('💥 数据库连接测试出错:', error)
+      
+      // 如果是超时错误，记录特殊信息
+      if (error instanceof Error && error.message.includes('timeout')) {
+        console.error('⏰ 数据库连接测试超时，可能网络有问题')
+      }
+      
       return false
     }
   }
@@ -88,10 +101,16 @@ export class TaskService {
       console.log('🧪 执行数据库连接测试...')
       const connectionTest = await TaskService.testConnection(userId)
       if (!connectionTest) {
-        console.error('❌ 数据库连接测试失败，无法创建任务')
-        throw new Error('Database connection test failed')
+        console.error('❌ 数据库连接测试失败，但继续尝试创建任务')
+        // 不立即抛出错误，而是继续尝试创建任务
+        // throw new Error('Database connection test failed')
       }
-      console.log('✅ 数据库连接测试通过')
+      
+      if (connectionTest) {
+        console.log('✅ 数据库连接测试通过')
+      } else {
+        console.log('⚠️ 数据库连接测试失败，但继续尝试操作')
+      }
 
       // 🔍 检查任务是否已存在
       console.log('🔍 检查任务是否已存在...', { taskId })

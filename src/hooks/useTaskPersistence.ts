@@ -128,7 +128,8 @@ export const useTaskPersistence = ({
         taskId: newTaskId, 
         taskName, 
         folderName,
-        userEmail: user.email 
+        userEmail: user.email,
+        timestamp: new Date().toISOString()
       })
       
       // 添加重试机制
@@ -137,18 +138,39 @@ export const useTaskPersistence = ({
       
       while (retryCount < maxRetries) {
         try {
-          console.log(`🔄 尝试创建任务 (第 ${retryCount + 1} 次)...`)
+          console.log(`🔄 尝试创建任务 (第 ${retryCount + 1} 次)...`, {
+            attempt: retryCount + 1,
+            maxRetries,
+            taskId: newTaskId,
+            taskName
+          })
+          
           await TaskService.createTask(user.id, newTaskId, taskName, folderName, defaultModelParams)
           console.log('✅ 任务数据库记录创建成功')
           return // 成功则退出
         } catch (error) {
           retryCount++
-          console.error(`❌ 第 ${retryCount} 次创建尝试失败:`, error)
+          console.error(`❌ 第 ${retryCount} 次创建尝试失败:`, {
+            attempt: retryCount,
+            error: error instanceof Error ? error.message : error,
+            taskId: newTaskId,
+            taskName
+          })
           
           // 如果是重复键错误，不需要重试
           if (error instanceof Error && error.message.includes('duplicate key')) {
             console.log('ℹ️ 检测到重复键错误，任务可能已存在，停止重试')
             return // 直接返回，不抛出错误
+          }
+          
+          // 如果是连接超时错误，也停止重试
+          if (error instanceof Error && (
+            error.message.includes('timeout') || 
+            error.message.includes('Connection test timeout') ||
+            error.message.includes('Database connection test failed')
+          )) {
+            console.log('⏰ 检测到连接超时错误，停止重试')
+            throw new Error('数据库连接超时，请检查网络连接')
           }
           
           if (retryCount >= maxRetries) {
@@ -164,10 +186,12 @@ export const useTaskPersistence = ({
     } catch (error) {
       console.error('❌ 创建任务数据库记录失败:', {
         error,
+        errorType: error instanceof Error ? error.constructor.name : typeof error,
         userId: user.id,
         taskId: newTaskId,
         taskName,
-        folderName
+        folderName,
+        timestamp: new Date().toISOString()
       })
       
       // 如果是重复键错误，不抛出错误，让应用继续运行
