@@ -134,7 +134,7 @@ export const useTaskPersistence = ({
       
       // 添加重试机制
       let retryCount = 0
-      const maxRetries = 3
+      const maxRetries = 1
       
       while (retryCount < maxRetries) {
         try {
