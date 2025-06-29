@@ -170,12 +170,11 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
     try {
       setLoading(true);
       
-      // 关键修复：使用 reauthenticate 方法验证当前密码
+      // 关键修复：使用正确的密码验证方法
       console.log('🔐 开始验证当前密码...');
       
-      // 方法1：尝试使用当前用户邮箱和输入的密码重新登录来验证
-      const { data: verifyData, error: verifyError } = await supabase.auth.signInWithPassword({
-        email: user.email!,
+      // 使用 Supabase 的 reauthenticate 方法验证当前密码
+      const { data: verifyData, error: verifyError } = await supabase.auth.reauthenticate({
         password: passwordForm.currentPassword
       });
 
@@ -194,6 +193,10 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
         } else if (verifyError.message.includes('Network error') || 
                    verifyError.message.includes('Failed to fetch')) {
           showNotification('error', '网络连接失败，请检查网络后重试');
+        } else if (verifyError.message.includes('reauthenticate_not_valid')) {
+          showNotification('error', '当前密码不正确，请重新输入');
+        } else if (verifyError.message.includes('session_not_found')) {
+          showNotification('error', '会话已过期，请重新登录');
         } else {
           showNotification('error', `密码验证失败: ${verifyError.message}`);
         }
@@ -202,7 +205,7 @@ const SecuritySection: React.FC<SecuritySectionProps> = ({
 
       console.log('✅ 当前密码验证成功，用户ID:', verifyData?.user?.id);
       
-      // 验证成功后，更新密码
+      // 验证成功后，直接更新密码
       console.log('🔄 开始更新密码...');
       
       const { error } = await supabase.auth.updateUser({
