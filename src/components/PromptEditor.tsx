@@ -25,7 +25,7 @@ import {
   CheckCircle
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
-// import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { useTaskPersistence } from '../hooks/useTaskPersistence';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { TaskService, ModelParams } from '../lib/taskService';
@@ -37,7 +37,7 @@ import { format } from 'date-fns';
 
 const PromptEditor: React.FC = () => {
   const { state, dispatch } = useApp();
-  // const { user, userInfo } = useAuth();
+  const { user, userInfo } = useAuth();
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1000);
@@ -51,7 +51,7 @@ const PromptEditor: React.FC = () => {
 
   // 获取当前任务的模型参数
   const getCurrentModelParams = (): ModelParams => {
-    const customModel = state.selectedCustomModel || { temperature: 0.7, maxTokens: 1000, topK: 50, topP: 1.0 };
+    const customModel = state.selectedCustomModel;
     return TaskService.getDefaultModelParams(customModel);
   };
 
@@ -103,16 +103,16 @@ const PromptEditor: React.FC = () => {
         setCurrentLoadedVersion(null);
         
         // 🔄 检测到新任务，准备创建数据库记录
-        if (false && !state.currentTask.createdInDB) { // 演示模式：禁用数据库操作
+        if (!state.currentTask.createdInDB && userInfo?.custom_models && userInfo.custom_models.length > 0) {
           console.log('🔄 检测到新任务，准备创建数据库记录...', {
             taskId: state.currentTask.id,
             taskName: state.currentTask.name,
-            hasUser: true
+            hasUser: !!user
           });
           
           // 获取默认模型参数
-          const defaultModel = { temperature: 0.7, maxTokens: 1000, topK: 50, topP: 1.0 };
-          if (defaultModel) {
+          const defaultModel = userInfo.custom_models.find((model: any) => model.isDefault) || userInfo.custom_models[0];
+          if (defaultModel && user) {
             const defaultModelParams = TaskService.getDefaultModelParams(defaultModel);
             
             // 异步创建数据库记录
@@ -146,11 +146,11 @@ const PromptEditor: React.FC = () => {
         }
 
         // 如果是新任务且用户已登录，创建数据库记录
-        if (false && state.currentTask && !state.currentTask.createdInDB) { // 演示模式：禁用数据库操作
+        if (false && user && state.currentTask && !state.currentTask.createdInDB) {
           console.log('🔄 检测到新任务，准备创建数据库记录...', {
             taskId: state.currentTask.id,
             taskName: state.currentTask.name,
-            hasUser: true
+            hasUser: !!user
           });
           
           const taskId = parseInt(state.currentTask.id);
@@ -170,8 +170,8 @@ const PromptEditor: React.FC = () => {
             taskName: state.currentTask.name,
             folderName,
             defaultParams,
-            userId: 'demo-user',
-            userEmail: 'demo@example.com'
+            userId: user.id,
+            userEmail: user.email
           });
           
           createTask(taskId, state.currentTask.name, folderName, defaultParams)
@@ -186,7 +186,7 @@ const PromptEditor: React.FC = () => {
                 error,
                 taskId,
                 taskName: state.currentTask?.name,
-                userId: 'demo-user',
+                userId: user.id,
                 errorMessage: error.message,
                 errorStack: error.stack
               });
@@ -211,7 +211,7 @@ const PromptEditor: React.FC = () => {
       setCurrentChatHistory([]);
       setCurrentLoadedVersion(null);
     }
-  }, [state.currentTask, dispatch, createTask]);
+  }, [state.currentTask, dispatch, user, userInfo, createTask]);
 
   // 自动保存当前任务的内容 - 添加防抖和条件检查
   useEffect(() => {
@@ -382,7 +382,7 @@ const PromptEditor: React.FC = () => {
     setMaxTokens(newMaxTokens);
 
     // 立即同步模型参数到数据库
-    if (false && state.currentTask) { // 演示模式：禁用数据库同步
+    if (state.currentTask && user) {
       console.log('🔄 模型参数发生变化，准备同步到数据库...', {
         taskId: state.currentTask.id,
         newTemperature,
@@ -400,7 +400,6 @@ const PromptEditor: React.FC = () => {
         // 不阻断用户操作，只记录错误
       });
     }
-    console.log('演示模式：跳过模型参数同步');
   };
 
   const copyPromptToClipboard = async () => {

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useReducer, ReactNode, useEffect } from 'react';
 import { PromptVersion, TestResult, ABTest, Comment, PromptTask, Folder, ProjectData } from '../types';
-// import { useAuth } from './AuthContext';
+import { useAuth } from './AuthContext';
 import { TaskService } from '../lib/taskService';
 import { syncService } from '../lib/syncService';
 import { useLocalStorage } from '../hooks/useLocalStorage';
@@ -314,14 +314,12 @@ const AppContext = createContext<{
 
 export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
-  // const { user } = useAuth(); 
+  const { user } = useAuth(); 
   const { loadFromLocalStorage } = useLocalStorage();
   
   // 🔄 数据同步到数据库的函数
   const syncToDatabase = async (force = false) => {
-    // if (!user || state.isSyncing) return;
-    console.log('演示模式：跳过数据库同步');
-    return;
+    if (!user || state.isSyncing) return;
 
     try {
       console.log('🔄 开始同步数据到数据库...');
@@ -377,8 +375,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   // 📥 用户登录后从数据库加载数据
   useEffect(() => {
     const loadUserData = async () => {
-      // if (!user || state.isDataLoaded) return;
-      if (state.isDataLoaded) return;
+      if (!user || state.isDataLoaded) return;
 
       try {
         console.log('📥 开始从数据库加载用户数据...');
@@ -419,14 +416,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    // 演示模式：直接加载本地数据
-    if (true) {
+    if (user) {
       loadUserData();
     } else {
       // 用户未登录时，清除数据加载状态
       dispatch({ type: 'SET_DATA_LOADED', payload: false });
     }
-  }, [state.isDataLoaded]);
+  }, [user, state.isDataLoaded]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, syncToDatabase }}>

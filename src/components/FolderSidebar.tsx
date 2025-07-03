@@ -17,7 +17,7 @@ import {
   Database
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
-// import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { TaskService } from '../lib/taskService';
 import { Folder as FolderType, PromptTask } from '../types';
 import { syncService, SyncOperation } from '../lib/syncService';
@@ -25,7 +25,7 @@ import { useLocalStorage } from '../hooks/useLocalStorage';
 
 const FolderSidebar: React.FC = () => {
   const { state, dispatch, syncToDatabase } = useApp();
-  // const { user } = useAuth();
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState('');
   const [showCreateFolder, setShowCreateFolder] = useState(false);
   const [showCreateTask, setShowCreateTask] = useState<string | null>(null);
@@ -56,24 +56,23 @@ const FolderSidebar: React.FC = () => {
     saveToLocalStorage([...state.folders, newFolder], state.tasks);
 
     // 🔄 实时记录文件夹操作到数据库
-    // if (user) {
-    //   try {
-    //     await DatabaseService.recordFolderOperation({
-    //       type: 'create',
-    //       // 更新状态
-    //       folderId: newFolder.id,
-    //       folderName: newFolder.name,
-    //       userId: user.id
-    //     });
+    if (user) {
+      try {
+        await DatabaseService.recordFolderOperation({
+          type: 'create',
+          // 更新状态
+          folderId: newFolder.id,
+          folderName: newFolder.name,
+          userId: user.id
+        });
           
           // 保存到本地存储
           saveToLocalStorage(projectData.folders, projectData.tasks);
-    //     console.log('✅ 文件夹创建操作已记录到数据库');
-    //   } catch (error) {
-    //     console.error('❌ 记录文件夹创建操作失败:', error);
-    //   }
-    // }
-    console.log('演示模式：跳过数据库操作');
+        console.log('✅ 文件夹创建操作已记录到数据库');
+      } catch (error) {
+        console.error('❌ 记录文件夹创建操作失败:', error);
+      }
+    }
   };
   // 生成唯一的任务 ID
   const generateUniqueTaskId = (): string => {
@@ -109,12 +108,12 @@ const FolderSidebar: React.FC = () => {
     setShowCreateTask(null);
 
     // 同步任务创建到数据库 - 使用 syncService 直接添加到同步队列
-    if (false) { // 演示模式：禁用数据库同步
+    if (user) {
       syncService.addToSyncQueue({
         operation: SyncOperation.CREATE,
         type: 'task',
         data: {
-          userId: 'demo-user',
+          userId: user.id,
           taskId: parseInt(newTask.id),
           taskName: newTask.name,
           folderName: state.folders.find(f => f.id === newTask.folderId)?.name || '默认文件夹',
@@ -159,16 +158,15 @@ const FolderSidebar: React.FC = () => {
       saveToLocalStorage(updatedFolders, updatedTasks);
 
       // 🔄 实时记录文件夹删除操作到数据库
-      // if (user && folder) {
-      //   try {
+      if (user && folder) {
+        try {
           // 使用新的同步服务
-      //     console.log('🔄 文件夹删除操作已记录到本地，将在下次同步时更新到数据库');
-      //     console.log('✅ 文件夹创建操作已记录到数据库');
-      //   } catch (error) {
-      //     console.error('❌ 记录文件夹删除操作失败:', error);
-      //   }
-      // }
-      console.log('演示模式：跳过数据库操作');
+          console.log('🔄 文件夹删除操作已记录到本地，将在下次同步时更新到数据库');
+          console.log('✅ 文件夹创建操作已记录到数据库');
+        } catch (error) {
+          console.error('❌ 记录文件夹删除操作失败:', error);
+        }
+      }
     }
   };
 
@@ -186,12 +184,12 @@ const FolderSidebar: React.FC = () => {
       saveToLocalStorage(state.folders, updatedTasks);
 
       // 同步任务删除到数据库 - 使用 syncService 直接添加到同步队列
-      if (false) { // 演示模式：禁用数据库同步
+      if (user) {
         syncService.addToSyncQueue({
           operation: SyncOperation.DELETE,
           type: 'task',
           data: {
-            userId: 'demo-user',
+            userId: user.id,
             taskId: parseInt(taskId)
           },
           priority: 1,
@@ -200,10 +198,10 @@ const FolderSidebar: React.FC = () => {
       }
 
       // 如果任务已在数据库中创建，则删除数据库记录
-      if (false && task && task.createdInDB) { // 演示模式：禁用数据库操作
+      if (user && task && task.createdInDB) {
         console.log('🔄 删除任务数据库记录...', { taskId: task.id, taskName: task.name })
         try {
-          await TaskService.deleteTask('demo-user', parseInt(task.id));
+          await TaskService.deleteTask(user.id, parseInt(task.id));
           console.log('✅ 任务删除操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录任务删除操作失败:', error);
@@ -230,20 +228,19 @@ const FolderSidebar: React.FC = () => {
       );
 
       // 🔄 实时记录文件夹重命名操作到数据库
-      // if (user) {
-      //   try {
-      //     await DatabaseService.recordFolderOperation({
-      //       type: 'update',
-      //       folderId: folder.id,
-      //       folderName: newName,
-      //       userId: user.id
-      //     });
-      //     console.log('✅ 文件夹重命名操作已记录到数据库');
-      //   } catch (error) {
-      //     console.error('❌ 记录文件夹重命名操作失败:', error);
-      //   }
-      // }
-      console.log('演示模式：跳过数据库操作');
+      if (user) {
+        try {
+          await DatabaseService.recordFolderOperation({
+            type: 'update',
+            folderId: folder.id,
+            folderName: newName,
+            userId: user.id
+          });
+          console.log('✅ 文件夹重命名操作已记录到数据库');
+        } catch (error) {
+          console.error('❌ 记录文件夹重命名操作失败:', error);
+        }
+      }
     }
     setEditingFolder(null);
   };
@@ -263,12 +260,12 @@ const FolderSidebar: React.FC = () => {
       );
 
       // 同步任务更新到数据库 - 使用 syncService 直接添加到同步队列
-      if (false) { // 演示模式：禁用数据库同步
+      if (user) {
         syncService.addToSyncQueue({
           operation: SyncOperation.UPDATE,
           type: 'task',
           data: {
-            userId: 'demo-user',
+            userId: user.id,
             taskId: parseInt(task.id),
             taskName: newName
           },
@@ -278,10 +275,10 @@ const FolderSidebar: React.FC = () => {
       }
 
       // 如果任务已在数据库中创建，则更新数据库记录
-      if (false && task.createdInDB) { // 演示模式：禁用数据库操作
+      if (user && task.createdInDB) {
         console.log('🔄 更新任务名称到数据库...', { taskId: task.id, oldName: task.name, newName })
         try {
-          await TaskService.updateTaskName('demo-user', parseInt(task.id), newName);
+          await TaskService.updateTaskName(user.id, parseInt(task.id), newName);
           console.log('✅ 任务重命名操作已记录到数据库');
         } catch (error) {
           console.error('❌ 记录任务重命名操作失败:', error);
@@ -323,21 +320,20 @@ const FolderSidebar: React.FC = () => {
       }
 
       // 🔄 实时记录任务移动操作到数据库
-      // if (user && task) {
-      //   try {
-      //     await DatabaseService.recordTaskOperation({
-      //       type: 'update',
-      //       taskId: task.id,
-      //       taskName: task.name,
-      //       folderId: targetFolderId,
-      //       userId: user.id
-      //     });
-      //     console.log('✅ 任务移动操作已记录到数据库');
-      //   } catch (error) {
-      //     console.error('❌ 记录任务移动操作失败:', error);
-      //   }
-      // }
-      console.log('演示模式：跳过数据库操作');
+      if (user && task) {
+        try {
+          await DatabaseService.recordTaskOperation({
+            type: 'update',
+            taskId: task.id,
+            taskName: task.name,
+            folderId: targetFolderId,
+            userId: user.id
+          });
+          console.log('✅ 任务移动操作已记录到数据库');
+        } catch (error) {
+          console.error('❌ 记录任务移动操作失败:', error);
+        }
+      }
     }
     setDraggedTask(null);
   };

@@ -10,13 +10,13 @@ import {
   Hash
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
-// import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { TaskService } from '../lib/taskService';
 import { SyncStatusIndicator } from './SyncStatusIndicator';
 
 const StatusBar: React.FC = () => {
   const { state } = useApp();
-  // const { userInfo } = useAuth();
+  const { userInfo } = useAuth();
   
   // 计算当前任务的token数（简单估算：4字符=1token）
   const currentPromptTokens = state.currentTask 
@@ -30,19 +30,13 @@ const StatusBar: React.FC = () => {
   const currentTokenUsage = state.currentTask?.tokenUsage || latestTestResult?.tokenUsage;
 
   // 检查用户是否配置了自定义模型
-  // const hasCustomModels = userInfo?.custom_models && userInfo.custom_models.length > 0;
+  const hasCustomModels = userInfo?.custom_models && userInfo.custom_models.length > 0;
   const selectedCustomModel = state.selectedCustomModel;
-  
-  // 演示模式：模拟有自定义模型
-  const hasCustomModels = true;
-  
-  // 如果没有选中模型，使用演示模型
-  const demoModel = selectedCustomModel || { name: 'GPT-4 (演示)', temperature: 0.7, topK: 50, topP: 1.0 };
   
   // 获取当前任务的模型参数
   const getCurrentModelParams = () => {
-    if (demoModel) {
-      return TaskService.getDefaultModelParams(demoModel);
+    if (selectedCustomModel) {
+      return TaskService.getDefaultModelParams(selectedCustomModel);
     }
     return null;
   };
@@ -254,7 +248,7 @@ const StatusBar: React.FC = () => {
     {
       icon: Cpu,
       label: '模型',
-      value: demoModel?.name || '演示模型',
+      value: selectedCustomModel?.name || '未选择',
       color: 'text-purple-600 dark:text-purple-400'
     },
     {
@@ -325,8 +319,8 @@ const StatusBar: React.FC = () => {
           
           {/* 连接状态 */}
           <div className="flex items-center space-x-1">
-            <div className="w-2 h-2 bg-orange-500 rounded-full animate-pulse"></div>
-            <span className="text-xs text-gray-500 dark:text-gray-400">演示模式</span>
+            <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span className="text-xs text-gray-500 dark:text-gray-400">在线</span>
           </div>
           
           {/* 当前时间 */}

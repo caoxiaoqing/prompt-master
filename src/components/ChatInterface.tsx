@@ -15,7 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
-// import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/AuthContext';
 import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
 import { OpenAIService } from '../lib/openaiService';
@@ -38,7 +38,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   onChatHistoryChange
 }) => {
   const { state, dispatch } = useApp();
-  // const { userInfo } = useAuth();
+  const { userInfo } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -51,31 +51,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [apiError, setApiError] = useState<string | null>(null);
 
   // 获取用户的自定义模型列表
-  // const customModels = userInfo?.custom_models || [];
-  // const hasCustomModels = customModels.length > 0;
+  const customModels = userInfo?.custom_models || [];
+  const hasCustomModels = customModels.length > 0;
   
   // 获取默认模型
-  // const defaultModel = customModels.find((model: any) => model.isDefault);
-  
-  // 暂时使用模拟的模型配置
-  const mockCustomModels = [
-    {
-      id: 'demo-gpt-4',
-      name: 'GPT-4 (演示)',
-      baseUrl: 'https://api.openai.com/v1',
-      apiKey: 'demo-key',
-      isDefault: true,
-      temperature: 0.7,
-      maxTokens: 1000,
-      topK: 50,
-      topP: 1.0,
-      createdAt: new Date().toISOString()
-    }
-  ];
-  
-  const customModels = mockCustomModels;
-  const hasCustomModels = true;
-  const defaultModel = mockCustomModels[0];
+  const defaultModel = customModels.find((model: any) => model.isDefault);
 
   // 当任务切换时，加载对应的聊天历史
   useEffect(() => {
@@ -206,7 +186,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     
     // 检查是否选择了模型
     if (!state.selectedCustomModel) {
-      setApiError('演示模式：请选择一个模型进行测试');
+      setApiError('请先在账户设置中配置并选择一个自定义模型');
       return;
     }
 
@@ -262,12 +242,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         model: state.selectedCustomModel.name,
         messagesCount: conversationContext.length
       });
-      
-      // 在演示模式下，模拟 API 响应
-      if (state.selectedCustomModel.apiKey === 'demo-key') {
-        await simulateAPIResponse(userMessage, loadingMessage);
-        return;
-      }
       
       const startTime = Date.now();
 
@@ -379,46 +353,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       }, 100);
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  // 模拟 API 响应（演示模式）
-  const simulateAPIResponse = async (userMessage: ChatMessage, loadingMessage: ChatMessage) => {
-    try {
-      // 模拟网络延迟
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
-      
-      const mockResponses = [
-        "这是一个演示响应。在实际使用中，这里会显示来自 AI 模型的真实回答。您可以继续对话来测试聊天功能。",
-        "感谢您的问题！这是演示模式下的模拟回答。真实的 AI 模型会根据您的输入提供更准确和有用的回答。",
-        "我理解您的需求。在演示模式下，我只能提供模拟的回答。配置真实的 API 密钥后，您将获得完整的 AI 对话体验。",
-        "这是一个很好的问题。演示模式让您可以体验聊天界面的功能，包括消息历史、响应时间统计等特性。",
-        "在演示模式下，我可以展示聊天功能的各种特性，如消息格式、时间戳、token 统计等。实际使用时会连接到真实的 AI 服务。"
-      ];
-      
-      const responseContent = mockResponses[Math.floor(Math.random() * mockResponses.length)];
-      const responseTime = 1000 + Math.random() * 2000;
-      
-      const assistantMessage: ChatMessage = {
-        id: loadingMessage.id,
-        role: 'assistant',
-        content: responseContent,
-        timestamp: new Date(),
-        tokenUsage: {
-          prompt: Math.ceil(userMessage.content.length / 4),
-          completion: Math.ceil(responseContent.length / 4),
-          total: Math.ceil((userMessage.content.length + responseContent.length) / 4)
-        },
-        responseTime: Math.round(responseTime)
-      };
-
-      setMessages(prev => 
-        prev.map(msg => 
-          msg.id === loadingMessage.id ? assistantMessage : msg
-        )
-      );
-    } catch (error) {
-      console.error('模拟响应失败:', error);
     }
   };
 
@@ -606,7 +540,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
                 <Bot size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">开始 AI 对话测试 (演示模式)</p>
+                <p className="text-lg font-medium mb-2">开始 AI 对话测试</p>
                 <p className="text-sm">
                   输入用户消息来测试AI模型的回答效果
                 </p>
@@ -618,8 +552,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                 ) : (
                   <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 max-w-md">
                     {hasCustomModels 
-                      ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格（演示模式）'
-                      : '⚠️ 演示模式：使用模拟的 AI 响应'
+                      ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格（可选）'
+                      : '⚠️ 请先在账户设置中配置自定义模型'
                     }
                   </p>
                 )}
@@ -691,7 +625,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={hasCustomModels ? "输入用户消息... (演示模式)" : "演示模式：输入消息体验聊天功能"}
+              placeholder={hasCustomModels ? "输入用户消息..." : "请先配置自定义模型"}
               disabled={isLoading || !hasCustomModels}
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               rows={Math.min(Math.max(userInput.split('\n').length, 1), 5)}
