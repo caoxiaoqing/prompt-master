@@ -14,16 +14,16 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { useApp } from '../contexts/AppContext';
-import { useAuth } from '../contexts/AuthContext';
+// import { useAuth } from '../contexts/AuthContext';
 import StatusBar from './StatusBar';
 import FolderSidebar from './FolderSidebar';
-import UserSettings from './settings/UserSettings';
+// import UserSettings from './settings/UserSettings';
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { state, dispatch } = useApp();
-  const { user, userInfo, signOut } = useAuth();
+  // const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
+  // const [showSettings, setShowSettings] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleSidebar = () => {
@@ -34,13 +34,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     dispatch({ type: 'TOGGLE_THEME' });
   };
 
-  const handleSignOut = async () => {
-    try {
-      await signOut();
-    } catch (error) {
-      console.error('Sign out error:', error);
-    }
-  };
+  // const handleSignOut = async () => {
+  //   try {
+  //     await signOut();
+  //   } catch (error) {
+  //     console.error('Sign out error:', error);
+  //   }
+  // };
 
   // 处理用户菜单的点击切换
   const toggleUserMenu = (e: React.MouseEvent) => {
@@ -122,6 +122,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {state.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               
+              {/* 暂时隐藏用户菜单
               {/* User Menu - 修复后的版本 */}
               <div className="relative" ref={userMenuRef}>
                 <button 
@@ -137,16 +138,19 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 >
                   {/* 显示用户头像或默认图标 */}
                   <div className="flex items-center space-x-2">
-                    {userInfo?.user_profile_pic ? (
+                    {/* {userInfo?.user_profile_pic ? (
                       <span className="text-lg">{userInfo.user_profile_pic}</span>
-                    ) : (
+                    ) : ( */}
                       <User size={18} />
-                    )}
-                    {userInfo?.user_name && (
+                    {/* )} */}
+                    {/* {userInfo?.user_name && (
                       <span className="text-sm font-medium hidden sm:block max-w-32 truncate">
                         {userInfo.user_name}
                       </span>
-                    )}
+                    )} */}
+                    <span className="text-sm font-medium hidden sm:block">
+                      演示模式
+                    </span>
                     <ChevronDown 
                       size={14} 
                       className={`transition-transform duration-200 ${
@@ -173,15 +177,13 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     {/* 菜单头部 - 用户信息 */}
                     <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
                       <div className="flex items-center space-x-3 mb-1">
-                        {userInfo?.user_profile_pic && (
-                          <span className="text-xl">{userInfo.user_profile_pic}</span>
-                        )}
+                        <User size={20} />
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {userInfo?.user_name || '用户'}
+                            演示用户
                           </p>
                           <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {user?.email}
+                            demo@example.com
                           </p>
                         </div>
                       </div>
@@ -190,32 +192,29 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                     {/* 菜单选项 */}
                     <div className="py-1">
                       <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          setShowSettings(true);
-                        }}
+                        onClick={() => setShowUserMenu(false)}
                         className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 text-gray-700 dark:text-gray-300 transition-colors"
+                        disabled
                       >
                         <Settings size={16} />
-                        <span>账户设置</span>
+                        <span>账户设置 (暂不可用)</span>
                       </button>
                       
                       <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
                       
                       <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          handleSignOut();
-                        }}
+                        onClick={() => setShowUserMenu(false)}
                         className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-3 text-red-600 dark:text-red-400 transition-colors"
+                        disabled
                       >
                         <LogOut size={16} />
-                        <span>退出登录</span>
+                        <span>退出登录 (暂不可用)</span>
                       </button>
                     </div>
                   </div>
                 )}
               </div>
+              */}
             </div>
           </div>
         </header>
@@ -262,10 +261,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
         </div>
       </div>
 
-      {/* User Settings Modal */}
-      {showSettings && (
+      {/* User Settings Modal - 暂时禁用 */}
+      {/* {showSettings && (
         <UserSettings onClose={() => setShowSettings(false)} />
-      )}
+      )} */}
     </div>
   );
 };
