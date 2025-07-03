@@ -76,10 +76,11 @@ const FolderSidebar: React.FC = () => {
   };
   // 生成唯一的任务 ID
   const generateUniqueTaskId = (): string => {
-    // 使用时间戳 + 随机数确保唯一性
+    // 使用时间戳乘以1000加上小随机数，确保在安全整数范围内且唯一
     const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 10000);
-    return `${timestamp}${random}`;
+    const random = Math.floor(Math.random() * 1000);
+    const numericId = timestamp * 1000 + random;
+    return numericId.toString();
   };
 
   const handleCreateTask = async (folderId: string, name: string) => {
