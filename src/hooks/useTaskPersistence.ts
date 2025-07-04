@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react'
 import { useAuth } from '../contexts/AuthContext'
+import { useApp } from '../contexts/AppContext'
 import { TaskService, ModelParams } from '../lib/taskService'
 import { ChatMessage } from '../types'
 
