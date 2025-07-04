@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppProvider } from './contexts/AppContext';
+import { AppProvider, useApp } from './contexts/AppContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import PromptEditor from './components/PromptEditor';
@@ -45,9 +45,7 @@ function App() {
   
   return (
     <AuthProvider>
-      <AppProvider>
-        <AppContent />
-      </AppProvider>
+      <AppContent />
     </AuthProvider>
   );
 }
