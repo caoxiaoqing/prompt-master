@@ -103,6 +103,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const { state, dispatch } = useApp();
   const { userInfo } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [localSystemPrompt, setLocalSystemPrompt] = useState<string>(systemPrompt);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
@@ -112,6 +113,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // 当外部 systemPrompt 变化时更新本地状态
+  useEffect(() => {
+    setLocalSystemPrompt(systemPrompt);
+  }, [systemPrompt]);
 
   // 获取用户的自定义模型列表
   const customModels = userInfo?.custom_models || [];
@@ -343,7 +349,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         
         // 构建完整的对话上下文
         const conversationContext = [
-          ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
+          ...(localSystemPrompt.trim() ? [{ role: 'system', content: localSystemPrompt }] : []),
           ...messages.filter(m => !m.isLoading).map(m => ({
             role: m.role,
             content: m.content
@@ -529,7 +535,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // 修复：构建对话上下文时考虑 system prompt 可能为空的情况
       const conversationContext = [
         // 只有在有 system prompt 时才添加系统消息
-        ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
+        ...(localSystemPrompt.trim() ? [{ role: 'system', content: localSystemPrompt }] : []),
         ...messages.slice(0, messageIndex).filter(m => !m.isLoading).map(m => ({
           role: m.role,
           content: m.content

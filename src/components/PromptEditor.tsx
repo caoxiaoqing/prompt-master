@@ -76,6 +76,11 @@ const PromptEditor: React.FC = () => {
         createdInDB: state.currentTask.createdInDB
       });
       
+      // 保存当前 system prompt 到 state 中，避免在聊天时丢失
+      if (state.currentTask.content) {
+        onSystemPromptChange(state.currentTask.content);
+      }
+      
       // 关键修复：检查任务是否有记录的加载版本
       const loadedVersionId = state.currentTask.currentLoadedVersionId;
       const versions = state.currentTask.versions || [];
@@ -85,6 +90,7 @@ const PromptEditor: React.FC = () => {
         // 如果有记录的加载版本，恢复该版本的状态
         console.log('恢复任务的历史版本状态:', loadedVersion.name);
         setPrompt(loadedVersion.content || '');
+        onSystemPromptChange(loadedVersion.content || '');
         setTemperature(loadedVersion.temperature || 0.7);
         setMaxTokens(loadedVersion.maxTokens || 1000);
         setCurrentChatHistory(loadedVersion.chatHistory || []);
@@ -97,6 +103,7 @@ const PromptEditor: React.FC = () => {
       } else {
         // 如果没有记录的加载版本，使用任务的当前状态
         setPrompt(state.currentTask.content || '');
+        onSystemPromptChange(state.currentTask.content || '');
         setTemperature(state.currentTask.temperature || 0.7);
         setMaxTokens(state.currentTask.maxTokens || 1000);
         setCurrentChatHistory(state.currentTask.currentChatHistory || []);
@@ -216,7 +223,7 @@ const PromptEditor: React.FC = () => {
   // 自动保存当前任务的内容 - 添加防抖和条件检查
   useEffect(() => {
     if (state.currentTask && (
-      prompt !== (state.currentTask.content || '') ||
+      prompt !== (state.currentTask.content || '') || 
       temperature !== (state.currentTask.temperature || 0.7) ||
       maxTokens !== (state.currentTask.maxTokens || 1000)
     )) {
@@ -232,6 +239,9 @@ const PromptEditor: React.FC = () => {
         // 更新状态
         dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
         
+        // 确保 system prompt 在 ChatInterface 中也被更新
+        onSystemPromptChange(prompt);
+        
         // 保存到本地存储
         saveToLocalStorage(
           state.folders,
@@ -241,7 +251,7 @@ const PromptEditor: React.FC = () => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [prompt, temperature, maxTokens, state.currentTask, dispatch, saveToLocalStorage, state.folders, state.tasks]);
+  }, [prompt, temperature, maxTokens, state.currentTask, dispatch, saveToLocalStorage, state.folders, state.tasks, onSystemPromptChange]);
 
   // 检查是否有未保存的更改
   const hasUnsavedChanges = () => {
