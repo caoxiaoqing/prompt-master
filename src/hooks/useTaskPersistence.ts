@@ -19,6 +19,7 @@ export const useTaskPersistence = ({
   onModelParamsUpdate
 }: UseTaskPersistenceProps) => {
   const { user } = useAuth()
+  const { state } = useApp()
   const systemPromptRef = useRef(systemPrompt)
   const chatHistoryRef = useRef(chatHistory)
   const modelParamsRef = useRef(modelParams)
@@ -42,7 +43,7 @@ export const useTaskPersistence = ({
 
   // 自动同步 system prompt（每10秒）
   useEffect(() => {
-    if (!user || !taskId) return
+    if (!user || !taskId || state.isUnauthenticatedMode) return
 
     const syncSystemPrompt = async () => {
       const currentTime = Date.now()
@@ -70,7 +71,7 @@ export const useTaskPersistence = ({
 
   // 自动同步聊天历史（每10秒）
   useEffect(() => {
-    if (!user || !taskId) return
+    if (!user || !taskId || state.isUnauthenticatedMode) return
 
     const syncChatHistory = async () => {
       const currentTime = Date.now()
@@ -98,7 +99,7 @@ export const useTaskPersistence = ({
 
   // 立即同步模型参数
   const syncModelParams = useCallback(async (newParams: ModelParams) => {
-    if (!user || !taskId) return
+    if (!user || !taskId || state.isUnauthenticatedMode) return
 
     try {
       console.log('🔄 立即同步模型参数...', { taskId, params: newParams })
@@ -120,7 +121,7 @@ export const useTaskPersistence = ({
     folderName: string,
     defaultModelParams: ModelParams
   ) => {
-    if (!user) return
+    if (!user || state.isUnauthenticatedMode) return
 
     try {
       console.log('🔄 创建新任务数据库记录...', { 
@@ -211,7 +212,7 @@ export const useTaskPersistence = ({
 
   // 手动强制同步所有数据
   const forceSyncAll = useCallback(async () => {
-    if (!user || !taskId) return
+    if (!user || !taskId || state.isUnauthenticatedMode) return
 
     try {
       console.log('🔄 开始强制同步所有数据...', { taskId })

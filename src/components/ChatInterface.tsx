@@ -19,6 +19,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
 import { OpenAIService } from '../lib/openaiService';
+import { supabase } from '../lib/supabase';
 
 interface ChatInterfaceProps {
   systemPrompt: string;
@@ -27,6 +28,68 @@ interface ChatInterfaceProps {
   maxTokens: number;
   onModelSettingsChange: (temperature: number, maxTokens: number) => void;
   onChatHistoryChange?: (messages: ChatMessage[]) => void;
+}
+
+// 未登录用户的 AI 服务
+class UnauthenticatedAIService {
+  static async sendChatRequest(
+    messages: any[]
+  ): Promise<{
+    content: string;
+    tokenUsage: { prompt: number; completion: number; total: number };
+    responseTime: number;
+    usageInfo?: { used: number; limit: number; remaining: number };
+  }> {
+    const startTime = Date.now();
+    
+    try {
+      console.log('🚀 发送未登录用户请求到 Supabase Edge Function...');
+      
+      const { data, error } = await supabase.functions.invoke('openai-completion', {
+        body: { messages }
+      });
+      
+      if (error) {
+        console.error('❌ Edge Function 调用失败:', error);
+        throw new Error(error.message || 'AI 服务调用失败');
+      }
+      
+      const responseTime = Date.now() - startTime;
+      
+      // 检查是否是限制错误
+      if (data.error) {
+        if (data.error === 'Daily message limit exceeded') {
+          throw new Error(`今日消息次数已用完 (${data.used}/${data.limit})，明天重置`);
+        }
+        throw new Error(data.error);
+      }
+      
+      console.log('✅ 未登录用户请求成功:', {
+        responseTime: `${responseTime}ms`,
+        usageInfo: data.usage_info
+      });
+      
+      // 提取响应内容
+      const content = data.choices?.[0]?.message?.content || '';
+      
+      // 计算 token 使用情况
+      const tokenUsage = data.usage ? {
+        prompt: data.usage.prompt_tokens,
+        completion: data.usage.completion_tokens,
+        total: data.usage.total_tokens
+      } : { prompt: 0, completion: 0, total: 0 };
+      
+      return {
+        content,
+        tokenUsage,
+        responseTime,
+        usageInfo: data.usage_info
+      };
+    } catch (error) {
+      console.error('❌ 未登录用户请求失败:', error);
+      throw error;
+    }
+  }
 }
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
@@ -54,6 +117,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const customModels = userInfo?.custom_models || [];
   const hasCustomModels = customModels.length > 0;
   
+  // 检查是否为未登录模式
+  const isUnauthenticated = state.isUnauthenticatedMode;
+  
   // 获取默认模型
   const defaultModel = customModels.find((model: any) => model.isDefault);
 
@@ -68,20 +134,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   // 当用户有自定义模型时，自动设置默认模型
   useEffect(() => {
-    if (hasCustomModels && defaultModel && !state.selectedCustomModel) {
+    if (!isUnauthenticated && hasCustomModels && defaultModel && !state.selectedCustomModel) {
       console.log('🎯 设置默认自定义模型:', defaultModel.name);
       dispatch({ 
         type: 'SET_SELECTED_CUSTOM_MODEL', 
         payload: defaultModel 
       });
-    } else if (!hasCustomModels && state.selectedCustomModel) {
+    } else if (!isUnauthenticated && !hasCustomModels && state.selectedCustomModel) {
       // 如果用户删除了所有自定义模型，清除选择
       dispatch({ 
         type: 'SET_SELECTED_CUSTOM_MODEL', 
         payload: null 
       });
     }
-  }, [hasCustomModels, defaultModel, state.selectedCustomModel, dispatch]);
+  }, [isUnauthenticated, hasCustomModels, defaultModel, state.selectedCustomModel, dispatch]);
 
   // 当聊天历史变化时，自动保存到当前任务并通知父组件
   useEffect(() => {
@@ -184,9 +250,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     // 关键修复：移除 systemPrompt 的必需检查，允许无 system prompt 时聊天
     if (!userInput.trim()) return;
     
-    // 检查是否选择了模型
-    if (!state.selectedCustomModel) {
+    // 检查是否选择了模型（仅对已登录用户）
+    if (!isUnauthenticated && !state.selectedCustomModel) {
       setApiError('请先在账户设置中配置并选择一个自定义模型');
+      return;
+    }
+    
+    // 未登录用户：检查使用次数限制
+    if (isUnauthenticated && state.unauthenticatedUsage.remaining <= 0) {
+      setApiError(`今日免费次数已用完 (${state.unauthenticatedUsage.used}/${state.unauthenticatedUsage.limit})，请登录以继续使用`);
       return;
     }
 
@@ -221,90 +293,133 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     try {
       setApiError(null);
       
-      // 构建完整的对话上下文 - 修复：只有在有 system prompt 时才添加
-      const conversationContext = [
-        // 只有在有 system prompt 时才添加系统消息
-        ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
-        ...messages.filter(m => !m.isLoading).map(m => ({
-          role: m.role,
-          content: m.content
-        })),
-        { role: 'user', content: userInput.trim() }
-      ];
-
-      // 创建 OpenAI 客户端
-      const canCreateClient = createOpenAIClient(state.selectedCustomModel);
-      if (!canCreateClient) {
-        throw new Error('无法创建 AI 客户端，请检查模型配置');
-      }
-      
-      console.log('🚀 发送请求到 OpenAI API...', {
-        model: state.selectedCustomModel.name,
-        messagesCount: conversationContext.length
-      });
-      
-      const startTime = Date.now();
-
-      // 使用 OpenAIService 发送请求
-      try {
-        // 动态导入 OpenAIService
-        const { OpenAIService } = await import('../lib/openaiService');
+      if (isUnauthenticated) {
+        // 未登录用户：使用 Supabase Edge Function
+        console.log('🚀 未登录用户发送请求...');
         
-        try {
-          const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
-            state.selectedCustomModel.baseUrl,
-            state.selectedCustomModel.apiKey,
-            conversationContext,
-            state.selectedCustomModel.name,
-            temperature,
-            maxTokens,
-            state.selectedCustomModel.topP || 1.0,
-            state.selectedCustomModel.topK || 50
-          );
-
-          const assistantMessage: ChatMessage = {
-            id: loadingMessage.id,
-            role: 'assistant',
-            content: responseContent,
-            timestamp: new Date(),
-            tokenUsage: tokenUsage,
-            responseTime: responseTime
-          };
-
-          setMessages(prev => 
-            prev.map(msg => 
-              msg.id === loadingMessage.id ? assistantMessage : msg
-            )
-          );
-
-          // 更新任务状态，包含完整的聊天历史和响应数据
-          const finalMessages = messages.map(msg => 
-            msg.id === loadingMessage.id ? assistantMessage : msg
-          );
-          updateTaskWithMessages(finalMessages);
+        // 构建对话上下文
+        const conversationContext = [
+          ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
+          ...messages.filter(m => !m.isLoading).map(m => ({
+            role: m.role,
+            content: m.content
+          })),
+          { role: 'user', content: userInput.trim() }
+        ];
+        
+        const { content: responseContent, tokenUsage, responseTime, usageInfo } = await UnauthenticatedAIService.sendChatRequest(conversationContext);
+        
+        // 更新使用次数
+        if (usageInfo) {
+          dispatch({ 
+            type: 'UPDATE_UNAUTH_USAGE', 
+            payload: usageInfo 
+          });
           
-          // 单独更新任务的响应时间和token使用情况
-          setTimeout(() => {
-            if (state.currentTask) {
-              const updatedTokenUsage = tokenUsage;
-              const updatedResponseTime = responseTime;
-              
-              const updatedTask = {
-                ...state.currentTask,
-                responseTime: updatedResponseTime,
-                tokenUsage: updatedTokenUsage,
-                updatedAt: new Date()
-              };
-              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-            }
-          }, 100);
-        } catch (apiError: any) {
-          console.error('API 调用失败:', apiError.message);
-          throw apiError;
+          // 更新本地存储
+          const today = new Date().toDateString();
+          localStorage.setItem('unauth-usage-date', today);
+          localStorage.setItem('unauth-usage-count', usageInfo.used.toString());
         }
-      } catch (importError: any) {
-        console.error('导入 OpenAIService 失败:', importError.message);
-        throw new Error(`无法加载 AI 服务模块: ${importError.message}`);
+        
+        const assistantMessage: ChatMessage = {
+          id: loadingMessage.id,
+          role: 'assistant',
+          content: responseContent,
+          timestamp: new Date(),
+          tokenUsage: tokenUsage,
+          responseTime: responseTime
+        };
+
+        setMessages(prev => 
+          prev.map(msg => 
+            msg.id === loadingMessage.id ? assistantMessage : msg
+          )
+        );
+        
+      } else {
+        // 已登录用户：使用自定义模型
+        console.log('🚀 已登录用户发送请求...');
+        
+        // 构建完整的对话上下文
+        const conversationContext = [
+          ...(systemPrompt.trim() ? [{ role: 'system', content: systemPrompt }] : []),
+          ...messages.filter(m => !m.isLoading).map(m => ({
+            role: m.role,
+            content: m.content
+          })),
+          { role: 'user', content: userInput.trim() }
+        ];
+
+        // 创建 OpenAI 客户端
+        const canCreateClient = createOpenAIClient(state.selectedCustomModel);
+        if (!canCreateClient) {
+          throw new Error('无法创建 AI 客户端，请检查模型配置');
+        }
+        
+        const startTime = Date.now();
+
+        // 使用 OpenAIService 发送请求
+        try {
+          // 动态导入 OpenAIService
+          const { OpenAIService } = await import('../lib/openaiService');
+          
+          try {
+            const { content: responseContent, tokenUsage, responseTime } = await OpenAIService.sendChatRequest(
+              state.selectedCustomModel.baseUrl,
+              state.selectedCustomModel.apiKey,
+              conversationContext,
+              state.selectedCustomModel.name,
+              temperature,
+              maxTokens,
+              state.selectedCustomModel.topP || 1.0,
+              state.selectedCustomModel.topK || 50
+            );
+
+            const assistantMessage: ChatMessage = {
+              id: loadingMessage.id,
+              role: 'assistant',
+              content: responseContent,
+              timestamp: new Date(),
+              tokenUsage: tokenUsage,
+              responseTime: responseTime
+            };
+
+            setMessages(prev => 
+              prev.map(msg => 
+                msg.id === loadingMessage.id ? assistantMessage : msg
+              )
+            );
+
+            // 更新任务状态，包含完整的聊天历史和响应数据
+            const finalMessages = messages.map(msg => 
+              msg.id === loadingMessage.id ? assistantMessage : msg
+            );
+            updateTaskWithMessages(finalMessages);
+            
+            // 单独更新任务的响应时间和token使用情况
+            setTimeout(() => {
+              if (state.currentTask) {
+                const updatedTokenUsage = tokenUsage;
+                const updatedResponseTime = responseTime;
+                
+                const updatedTask = {
+                  ...state.currentTask,
+                  responseTime: updatedResponseTime,
+                  tokenUsage: updatedTokenUsage,
+                  updatedAt: new Date()
+                };
+                dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+              }
+            }, 100);
+          } catch (apiError: any) {
+            console.error('API 调用失败:', apiError.message);
+            throw apiError;
+          }
+        } catch (importError: any) {
+          console.error('导入 OpenAIService 失败:', importError.message);
+          throw new Error(`无法加载 AI 服务模块: ${importError.message}`);
+        }
       }
 
       // 响应完成后再次确保输入框聚焦
@@ -320,7 +435,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       // 设置用户友好的错误消息
       let errorMessage = '发送消息失败，请稍后重试';
 
-      if (error instanceof Error) { 
+      if (error instanceof Error) {
         console.error('错误详情:', error.message);
         
         // 处理常见的 API 错误
@@ -336,6 +451,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           errorMessage = '内容被过滤，请修改您的请求';
         } else if (error.message.includes('model')) {
           errorMessage = '模型配置错误，请检查模型名称和参数';
+        } else if (error.message.includes('今日消息次数已用完')) {
+          errorMessage = error.message;
         }
       }
 
@@ -467,43 +584,66 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <h3 className="font-medium flex items-center space-x-2">
               <MessageSquare size={16} className="text-blue-600 dark:text-blue-400" />
               <span>聊天测试</span>
+              {isUnauthenticated && (
+                <span className="text-xs bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 px-2 py-1 rounded-full">
+                  免费模式
+                </span>
+              )}
             </h3>
             
-            {/* 模型选择和设置 - 移动到这里 */}
-            <div className="flex items-center space-x-2">
-              <select
-                value={state.selectedCustomModel ? state.selectedCustomModel.id : ''}
-                onChange={(e) => {
-                  const selectedModelId = e.target.value;
-                  const selectedModel = customModels.find((model: any) => model.id === selectedModelId);
-                  if (selectedModel) {
-                    dispatch({ 
-                      type: 'SET_SELECTED_CUSTOM_MODEL', 
-                      payload: selectedModel 
-                    });
-                  }
-                }}
-                className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
-                disabled={!hasCustomModels}
-              >
-                {!hasCustomModels && (
-                  <option value="">未配置模型</option>
-                )}
-                {customModels.map((model: any) => (
-                  <option key={model.id} value={model.id}>
-                    {model.name}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => setShowModelSettings(true)}
-                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="模型参数设置"
-                disabled={!state.selectedCustomModel}
-              >
-                <Settings size={14} />
-              </button>
-            </div>
+            {/* 模型选择和设置 - 仅对已登录用户显示 */}
+            {!isUnauthenticated && (
+              <div className="flex items-center space-x-2">
+                <select
+                  value={state.selectedCustomModel ? state.selectedCustomModel.id : ''}
+                  onChange={(e) => {
+                    const selectedModelId = e.target.value;
+                    const selectedModel = customModels.find((model: any) => model.id === selectedModelId);
+                    if (selectedModel) {
+                      dispatch({ 
+                        type: 'SET_SELECTED_CUSTOM_MODEL', 
+                        payload: selectedModel 
+                      });
+                    }
+                  }}
+                  className="px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-sm"
+                  disabled={!hasCustomModels}
+                >
+                  {!hasCustomModels && (
+                    <option value="">未配置模型</option>
+                  )}
+                  {customModels.map((model: any) => (
+                    <option key={model.id} value={model.id}>
+                      {model.name}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  onClick={() => setShowModelSettings(true)}
+                  className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors border border-gray-300 dark:border-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                  title="模型参数设置"
+                  disabled={!state.selectedCustomModel}
+                >
+                  <Settings size={14} />
+                </button>
+              </div>
+            )}
+            
+            {/* 未登录用户的使用次数显示 */}
+            {isUnauthenticated && (
+              <div className="flex items-center space-x-2 text-sm">
+                <span className="text-gray-500 dark:text-gray-400">今日剩余:</span>
+                <span className={`font-medium ${
+                  state.unauthenticatedUsage.remaining > 3 
+                    ? 'text-green-600 dark:text-green-400' 
+                    : state.unauthenticatedUsage.remaining > 0
+                    ? 'text-yellow-600 dark:text-yellow-400'
+                    : 'text-red-600 dark:text-red-400'
+                }`}>
+                  {state.unauthenticatedUsage.remaining}/{state.unauthenticatedUsage.limit}
+                </span>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center space-x-3">
@@ -540,22 +680,39 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             <div className="flex items-center justify-center h-full text-gray-500">
               <div className="text-center">
                 <Bot size={48} className="mx-auto mb-4 opacity-50" />
-                <p className="text-lg font-medium mb-2">开始 AI 对话测试</p>
-                <p className="text-sm">
-                  输入用户消息来测试AI模型的回答效果
+                <p className="text-lg font-medium mb-2">
+                  {isUnauthenticated ? '开始免费 AI 对话' : '开始 AI 对话测试'}
                 </p>
-                {/* 修复：移除对 system prompt 的强制要求提示 */}
-                {systemPrompt.trim() ? (
-                  <p className="text-sm text-green-600 dark:text-green-400 mt-2">
-                    ✓ 已设置 System Prompt，将影响AI的回答风格
-                  </p>
-                ) : (
-                  <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 max-w-md">
-                    {hasCustomModels 
-                      ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格（可选）'
-                      : '⚠️ 请先在账户设置中配置自定义模型'
-                    }
-                  </p>
+                <p className="text-sm">
+                  {isUnauthenticated 
+                    ? `每日可免费使用 ${state.unauthenticatedUsage.limit} 次，今日剩余 ${state.unauthenticatedUsage.remaining} 次`
+                    : '输入用户消息来测试AI模型的回答效果'
+                  }
+                </p>
+                
+                {!isUnauthenticated && (
+                  <>
+                    {systemPrompt.trim() ? (
+                      <p className="text-sm text-green-600 dark:text-green-400 mt-2">
+                        ✓ 已设置 System Prompt，将影响AI的回答风格
+                      </p>
+                    ) : (
+                      <p className="text-sm text-blue-600 dark:text-blue-400 mt-2 max-w-md">
+                        {hasCustomModels 
+                          ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格（可选）'
+                          : '⚠️ 请先在账户设置中配置自定义模型'
+                        }
+                      </p>
+                    )}
+                  </>
+                )}
+                
+                {isUnauthenticated && state.unauthenticatedUsage.remaining === 0 && (
+                  <div className="mt-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg max-w-md mx-auto">
+                    <p className="text-sm text-red-700 dark:text-red-300">
+                      今日免费次数已用完，请登录以继续使用
+                    </p>
+                  </div>
                 )}
                 
                 {/* 显示 API 错误信息 */}
@@ -625,19 +782,43 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               value={userInput}
               onChange={(e) => setUserInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder={hasCustomModels ? "输入用户消息..." : "请先配置自定义模型"}
-              disabled={isLoading || !hasCustomModels}
+              placeholder={
+                isUnauthenticated 
+                  ? (state.unauthenticatedUsage.remaining > 0 ? "输入消息开始对话..." : "今日免费次数已用完")
+                  : (hasCustomModels ? "输入用户消息..." : "请先配置自定义模型")
+              }
+              disabled={
+                isLoading || 
+                (!isUnauthenticated && !hasCustomModels) ||
+                (isUnauthenticated && state.unauthenticatedUsage.remaining <= 0)
+              }
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               rows={Math.min(Math.max(userInput.split('\n').length, 1), 5)}
             />
             <div className="flex items-center justify-between mt-2 text-xs text-gray-500">
               <span>按 Enter 发送，Shift + Enter 换行</span>
-              <span>{userInput.length} 字符</span>
+              <div className="flex items-center space-x-4">
+                <span>{userInput.length} 字符</span>
+                {isUnauthenticated && (
+                  <span className={`${
+                    state.unauthenticatedUsage.remaining > 0 
+                      ? 'text-green-600 dark:text-green-400' 
+                      : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    剩余 {state.unauthenticatedUsage.remaining} 次
+                  </span>
+                )}
+              </div>
             </div>
           </div>
           <button
             onClick={handleSendMessage}
-            disabled={!userInput.trim() || isLoading || !hasCustomModels}
+            disabled={
+              !userInput.trim() || 
+              isLoading || 
+              (!isUnauthenticated && !hasCustomModels) ||
+              (isUnauthenticated && state.unauthenticatedUsage.remaining <= 0)
+            }
             className="flex items-center justify-center w-12 h-12 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0 mt-0"
           >
             {isLoading ? (
@@ -651,7 +832,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
       {/* Model Settings Modal */}
       <AnimatePresence>
-        {showModelSettings && (
+        {showModelSettings && !isUnauthenticated && (
           <ModelSettingsModal
             temperature={state.selectedCustomModel?.temperature || temperature}
             maxTokens={state.selectedCustomModel?.maxTokens || maxTokens}
