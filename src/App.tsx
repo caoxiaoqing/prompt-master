@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppProvider, useApp } from './contexts/AppContext';
+import { AppProvider } from './contexts/AppContext';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import Layout from './components/Layout';
 import PromptEditor from './components/PromptEditor';
@@ -8,12 +8,10 @@ import { Loader2 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
-  const { state } = useApp();
 
   console.log('🎯 AppContent 渲染状态:', { 
     hasUser: !!user, 
     loading, 
-    isUnauthenticatedMode: state?.isUnauthenticatedMode 
   });
 
   if (loading) {
@@ -33,10 +31,17 @@ const AppContent: React.FC = () => {
   console.log('✅ 显示主应用界面', user ? '(已登录)' : '(未登录模式)');
   return (
     <AppProvider>
-      <Layout showAuthPage={!user}>
-        <PromptEditor />
-      </Layout>
+      <AppContentInner user={user} />
     </AppProvider>
+  );
+};
+
+// 内部组件，在 AppProvider 上下文中使用 useApp
+const AppContentInner: React.FC<{ user: any }> = ({ user }) => {
+  return (
+    <Layout showAuthPage={!user}>
+      <PromptEditor />
+    </Layout>
   );
 };
 
