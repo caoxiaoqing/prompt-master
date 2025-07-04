@@ -27,6 +27,7 @@ import {
 import { useApp } from '../contexts/AppContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useTaskPersistence } from '../hooks/useTaskPersistence';
+import { useApp as useAppHook } from '../contexts/AppContext';
 import { useLocalStorage } from '../hooks/useLocalStorage';
 import { TaskService, ModelParams } from '../lib/taskService';
 import { mockModels } from '../utils/mockData';
@@ -38,6 +39,7 @@ import { format } from 'date-fns';
 const PromptEditor: React.FC = () => {
   const { state, dispatch } = useApp();
   const { user, userInfo } = useAuth();
+  const { state: appState } = useAppHook();
   const [prompt, setPrompt] = useState('');
   const [temperature, setTemperature] = useState(0.7);
   const [maxTokens, setMaxTokens] = useState(1000);
@@ -50,6 +52,10 @@ const PromptEditor: React.FC = () => {
   const { saveToLocalStorage } = useLocalStorage();
 
   // 获取当前任务的模型参数
+  const onSystemPromptChange = (newPrompt: string) => {
+    setPrompt(newPrompt);
+  };
+  
   const getCurrentModelParams = (): ModelParams => {
     const customModel = state.selectedCustomModel;
     return TaskService.getDefaultModelParams(customModel);
@@ -58,7 +64,7 @@ const PromptEditor: React.FC = () => {
   // 使用任务持久化 hook
   const { syncModelParams, createTask, forceSyncAll } = useTaskPersistence({
     taskId: state.currentTask ? parseInt(state.currentTask.id) : null,
-    systemPrompt: prompt,
+    systemPrompt: prompt || '',
     chatHistory: currentChatHistory,
     modelParams: getCurrentModelParams(),
     onModelParamsUpdate: (params) => {
@@ -84,7 +90,9 @@ const PromptEditor: React.FC = () => {
       // 关键修复：检查任务是否有记录的加载版本
       const loadedVersionId = state.currentTask.currentLoadedVersionId;
       const versions = state.currentTask.versions || [];
-      const loadedVersion = loadedVersionId ? versions.find(v => v.id === loadedVersionId) : null;
+      const loadedVersion = loadedVersionId 
+        ? versions.find(v => v.id === loadedVersionId) 
+        : null;
 
       if (loadedVersion) {
         // 如果有记录的加载版本，恢复该版本的状态
@@ -93,7 +101,10 @@ const PromptEditor: React.FC = () => {
         onSystemPromptChange(loadedVersion.content || '');
         setTemperature(loadedVersion.temperature || 0.7);
         setMaxTokens(loadedVersion.maxTokens || 1000);
-        setCurrentChatHistory(loadedVersion.chatHistory || []);
+        
+        // 设置聊天历史
+        const chatHistory = loadedVersion.chatHistory || [];
+        setCurrentChatHistory(chatHistory);
         setCurrentLoadedVersion(loadedVersion);
         
         // 更新模型选择
@@ -106,7 +117,10 @@ const PromptEditor: React.FC = () => {
         onSystemPromptChange(state.currentTask.content || '');
         setTemperature(state.currentTask.temperature || 0.7);
         setMaxTokens(state.currentTask.maxTokens || 1000);
-        setCurrentChatHistory(state.currentTask.currentChatHistory || []);
+        
+        // 设置聊天历史
+        const chatHistory = state.currentTask.currentChatHistory || [];
+        setCurrentChatHistory(chatHistory);
         setCurrentLoadedVersion(null);
         
         // 🔄 检测到新任务，准备创建数据库记录
@@ -251,7 +265,7 @@ const PromptEditor: React.FC = () => {
 
       return () => clearTimeout(timeoutId);
     }
-  }, [prompt, temperature, maxTokens, state.currentTask, dispatch, saveToLocalStorage, state.folders, state.tasks, onSystemPromptChange]);
+  }, [prompt, temperature, maxTokens, state.currentTask, dispatch, saveToLocalStorage, state.folders, state.tasks]);
 
   // 检查是否有未保存的更改
   const hasUnsavedChanges = () => {
@@ -729,8 +743,8 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
         <ChatInterface 
           systemPrompt={prompt}
           onSystemPromptChange={setPrompt}
-          temperature={temperature}
-          maxTokens={maxTokens}
+          temperature={temperature || 0.7}
+          maxTokens={maxTokens || 1000}
           onModelSettingsChange={handleModelSettingsChange}
           onChatHistoryChange={handleChatHistoryChange}
         />

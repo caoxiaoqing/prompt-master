@@ -102,7 +102,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 }) => {
   const { state, dispatch } = useApp();
   const { userInfo } = useAuth();
+  
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  // 使用本地状态保存 systemPrompt，避免在聊天过程中丢失
   const [localSystemPrompt, setLocalSystemPrompt] = useState<string>(systemPrompt);
   const [userInput, setUserInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -113,6 +115,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [apiError, setApiError] = useState<string | null>(null);
+
+  // 当外部 systemPrompt 变化时更新本地状态
+  useEffect(() => {
+    setLocalSystemPrompt(systemPrompt);
+  }, [systemPrompt]);
 
   // 当外部 systemPrompt 变化时更新本地状态
   useEffect(() => {
@@ -534,7 +541,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     try {
       // 修复：构建对话上下文时考虑 system prompt 可能为空的情况
       const conversationContext = [
-        // 只有在有 system prompt 时才添加系统消息
+        // 使用本地保存的 systemPrompt
         ...(localSystemPrompt.trim() ? [{ role: 'system', content: localSystemPrompt }] : []),
         ...messages.slice(0, messageIndex).filter(m => !m.isLoading).map(m => ({
           role: m.role,
@@ -573,6 +580,12 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleModelSettingsChange = (newTemperature: number, newMaxTokens: number) => {
     onModelSettingsChange(newTemperature, newMaxTokens);
     setShowModelSettings(false);
+  };
+  
+  // 处理系统提示词变更
+  const handleSystemPromptChange = (newPrompt: string) => {
+    setLocalSystemPrompt(newPrompt);
+    onSystemPromptChange(newPrompt);
   };
 
   // 格式化响应时间为秒，小数点后保留2位
