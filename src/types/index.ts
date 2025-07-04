@@ -122,6 +122,8 @@ export interface PromptTask {
   currentLoadedVersionId?: string;
   // 新增：标记任务是否已在数据库中创建
   createdInDB?: boolean;
+  // 新增：标记任务是否为未登录用户创建
+  isUnauthenticated?: boolean;
 }
 
 export interface Folder {
@@ -139,4 +141,12 @@ export interface ProjectData {
   tasks: PromptTask[];
   version: string;
   exportedAt: Date;
+}
+
+// 新增：未登录用户使用情况
+export interface UnauthenticatedUsage {
+  used: number;
+  limit: number;
+  remaining: number;
+  resetTime?: string;
 }

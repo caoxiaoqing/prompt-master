@@ -8,8 +8,13 @@ import { Loader2 } from 'lucide-react';
 
 const AppContent: React.FC = () => {
   const { user, loading } = useAuth();
+  const { state } = useApp();
 
-  console.log('🎯 AppContent 渲染状态:', { hasUser: !!user, loading });
+  console.log('🎯 AppContent 渲染状态:', { 
+    hasUser: !!user, 
+    loading, 
+    isUnauthenticatedMode: state?.isUnauthenticatedMode 
+  });
 
   if (loading) {
     return (
@@ -25,15 +30,10 @@ const AppContent: React.FC = () => {
     );
   }
 
-  if (!user) {
-    console.log('🔓 显示登录页面');
-    return <AuthPage />;
-  }
-
-  console.log('✅ 显示主应用界面');
+  console.log('✅ 显示主应用界面', user ? '(已登录)' : '(未登录模式)');
   return (
     <AppProvider>
-      <Layout>
+      <Layout showAuthPage={!user}>
         <PromptEditor />
       </Layout>
     </AppProvider>
@@ -45,7 +45,9 @@ function App() {
   
   return (
     <AuthProvider>
-      <AppContent />
+      <AppProvider>
+        <AppContent />
+      </AppProvider>
     </AuthProvider>
   );
 }

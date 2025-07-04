@@ -27,6 +27,14 @@ interface AppState {
   // 数据同步状态
   isDataLoaded: boolean;
   isSyncing: boolean;
+  
+  // 新增：未登录模式状态
+  isUnauthenticatedMode: boolean;
+  unauthenticatedUsage: {
+    used: number;
+    limit: number;
+    remaining: number;
+  };
 }
 
 type AppAction =
@@ -59,7 +67,11 @@ type AppAction =
   | { type: 'SAVE_TO_STORAGE' }
   | { type: 'LOAD_FROM_DATABASE'; payload: { folders: Folder[]; tasks: PromptTask[] } }
   | { type: 'SET_DATA_LOADED'; payload: boolean }
-  | { type: 'SET_SYNCING'; payload: boolean };
+  | { type: 'SET_SYNCING'; payload: boolean }
+  | { type: 'SET_UNAUTHENTICATED_MODE'; payload: boolean }
+  | { type: 'UPDATE_UNAUTH_USAGE'; payload: { used: number; limit: number; remaining: number } }
+  | { type: 'SYNC_UNAUTH_DATA_TO_DB' }
+  | { type: 'CLEAR_UNAUTH_DATA' };
 
 const initialState: AppState = {
   versions: [],
@@ -88,7 +100,14 @@ const initialState: AppState = {
   expandedFolders: new Set(['default']),
   
   isDataLoaded: false,
-  isSyncing: false
+  isSyncing: false,
+  
+  isUnauthenticatedMode: true, // 默认为未登录模式
+  unauthenticatedUsage: {
+    used: 0,
+    limit: 10,
+    remaining: 10
+  }
 };
 
 // Helper function to convert date strings back to Date objects
@@ -299,6 +318,48 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_SYNCING':
       newState = { ...state, isSyncing: action.payload };
       break;
+    case 'SET_UNAUTHENTICATED_MODE':
+      newState = { ...state, isUnauthenticatedMode: action.payload };
+      break;
+    case 'UPDATE_UNAUTH_USAGE':
+      newState = { 
+        ...state, 
+        unauthenticatedUsage: action.payload 
+      };
+      break;
+    case 'SYNC_UNAUTH_DATA_TO_DB':
+      // 将未登录数据标记为需要同步到数据库
+      newState = {
+        ...state,
+        tasks: state.tasks.map(task => ({
+          ...task,
+          isUnauthenticated: false,
+          createdInDB: false // 标记为需要创建到数据库
+        }))
+      };
+      break;
+    case 'CLEAR_UNAUTH_DATA':
+      // 清除未登录数据
+      newState = {
+        ...state,
+        folders: [
+          {
+            id: 'default',
+            name: '默认文件夹',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            color: '#3B82F6'
+          }
+        ],
+        tasks: [],
+        currentTask: null,
+        unauthenticatedUsage: {
+          used: 0,
+          limit: 10,
+          remaining: 10
+        }
+      };
+      break;
     default:
       return state;
   }
@@ -316,6 +377,83 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [state, dispatch] = useReducer(appReducer, initialState);
   const { user } = useAuth(); 
   const { loadFromLocalStorage } = useLocalStorage();
+  
+  // 监听用户登录状态变化，处理未登录到登录的转换
+  useEffect(() => {
+    const handleAuthStateChange = async () => {
+      if (user && state.isUnauthenticatedMode) {
+        console.log('🔄 用户登录，处理未登录数据转换...');
+        
+        // 设置为已登录模式
+        dispatch({ type: 'SET_UNAUTHENTICATED_MODE', payload: false });
+        
+        try {
+          // 检查是否为新注册用户（通过检查数据库中是否有任务记录）
+          const existingTasks = await TaskService.getUserTasks(user.id);
+          
+          if (existingTasks.length === 0) {
+            // 新注册用户：保留未登录时的任务信息并同步到服务端
+            console.log('🆕 新注册用户，同步未登录数据到数据库');
+            dispatch({ type: 'SYNC_UNAUTH_DATA_TO_DB' });
+            
+            // 这里的实际同步逻辑会在 useTaskPersistence 中处理
+          } else {
+            // 已注册用户：丢弃未登录数据，加载用户的历史数据
+            console.log('👤 已注册用户，加载历史数据');
+            dispatch({ type: 'CLEAR_UNAUTH_DATA' });
+            
+            // 从数据库加载用户数据
+            // 这里需要将 TaskInfo 转换为 PromptTask 格式
+            const folders = [
+              {
+                id: 'default',
+                name: '默认文件夹',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                color: '#3B82F6'
+              }
+            ];
+            
+            const tasks: PromptTask[] = existingTasks.map(taskInfo => ({
+              id: taskInfo.task_id?.toString() || '',
+              name: taskInfo.task_name || '',
+              content: taskInfo.system_prompt || '',
+              folderId: 'default', // 暂时都放在默认文件夹
+              model: 'gpt-4',
+              temperature: taskInfo.model_params?.temperature || 0.7,
+              maxTokens: taskInfo.model_params?.max_tokens || 1000,
+              createdAt: new Date(taskInfo.created_at || Date.now()),
+              updatedAt: new Date(),
+              tags: [],
+              notes: '',
+              versions: [],
+              currentChatHistory: TaskService.convertChatInfoToMessages(taskInfo.chatinfo || []),
+              createdInDB: true
+            }));
+            
+            dispatch({ 
+              type: 'LOAD_FROM_DATABASE', 
+              payload: { folders, tasks } 
+            });
+          }
+          
+          // 清除本地未登录使用计数
+          localStorage.removeItem('unauth-usage-count');
+          localStorage.removeItem('unauth-usage-date');
+          
+        } catch (error) {
+          console.error('❌ 处理登录状态转换失败:', error);
+        }
+      } else if (!user && !state.isUnauthenticatedMode) {
+        // 用户登出，切换回未登录模式
+        console.log('🚪 用户登出，切换到未登录模式');
+        dispatch({ type: 'SET_UNAUTHENTICATED_MODE', payload: true });
+        dispatch({ type: 'CLEAR_UNAUTH_DATA' });
+      }
+    };
+
+    handleAuthStateChange();
+  }, [user, state.isUnauthenticatedMode]);
   
   // 🔄 数据同步到数据库的函数
   const syncToDatabase = async (force = false) => {
@@ -338,44 +476,72 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // 初始化时从本地存储加载数据
   useEffect(() => {
-    console.log('🔄 初始化时从本地存储加载数据...');
-    
-    // 从本地存储加载数据
-    const localData = loadFromLocalStorage();
-    
-    if (localData) {
-      console.log('✅ 从本地存储加载数据成功，更新应用状态');
+    if (state.isUnauthenticatedMode) {
+      console.log('🔄 未登录模式：从本地存储加载数据...');
       
-      // 确保至少有默认文件夹
-      const folders = localData.folders.length > 0 
-        ? localData.folders 
-        : [
-            {
-              id: 'default',
-              name: '默认文件夹',
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              color: '#3B82F6'
-            }
-          ];
+      // 从本地存储加载数据
+      const localData = loadFromLocalStorage();
       
-      // 更新应用状态
-      dispatch({ 
-        type: 'LOAD_FROM_DATABASE', 
-        payload: { 
-          folders, 
-          tasks: localData.tasks 
-        } 
-      });
-    } else {
-      console.log('ℹ️ 本地存储中没有数据，使用初始状态');
+      if (localData) {
+        console.log('✅ 从本地存储加载数据成功，更新应用状态');
+        
+        // 确保至少有默认文件夹
+        const folders = localData.folders.length > 0 
+          ? localData.folders 
+          : [
+              {
+                id: 'default',
+                name: '默认文件夹',
+                createdAt: new Date(),
+                updatedAt: new Date(),
+                color: '#3B82F6'
+              }
+            ];
+        
+        // 标记任务为未登录创建
+        const tasks = localData.tasks.map(task => ({
+          ...task,
+          isUnauthenticated: true,
+          createdInDB: false
+        }));
+        
+        // 更新应用状态
+        dispatch({ 
+          type: 'LOAD_FROM_DATABASE', 
+          payload: { folders, tasks } 
+        });
+      } else {
+        console.log('ℹ️ 本地存储中没有数据，使用初始状态');
+        dispatch({ type: 'SET_DATA_LOADED', payload: true });
+      }
+      
+      // 加载未登录用户的使用计数
+      const today = new Date().toDateString();
+      const savedDate = localStorage.getItem('unauth-usage-date');
+      const savedCount = localStorage.getItem('unauth-usage-count');
+      
+      if (savedDate === today && savedCount) {
+        const used = parseInt(savedCount, 10) || 0;
+        dispatch({ 
+          type: 'UPDATE_UNAUTH_USAGE', 
+          payload: { used, limit: 10, remaining: Math.max(0, 10 - used) }
+        });
+      } else {
+        // 新的一天，重置计数
+        localStorage.setItem('unauth-usage-date', today);
+        localStorage.setItem('unauth-usage-count', '0');
+        dispatch({ 
+          type: 'UPDATE_UNAUTH_USAGE', 
+          payload: { used: 0, limit: 10, remaining: 10 }
+        });
+      }
     }
-  }, [loadFromLocalStorage]);
+  }, [state.isUnauthenticatedMode, loadFromLocalStorage]);
 
   // 📥 用户登录后从数据库加载数据
   useEffect(() => {
     const loadUserData = async () => {
-      if (!user || state.isDataLoaded) return;
+      if (!user || state.isDataLoaded || state.isUnauthenticatedMode) return;
 
       try {
         console.log('📥 开始从数据库加载用户数据...');
@@ -416,13 +582,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     };
 
-    if (user) {
+    if (user && !state.isUnauthenticatedMode) {
       loadUserData();
     } else {
       // 用户未登录时，清除数据加载状态
       dispatch({ type: 'SET_DATA_LOADED', payload: false });
     }
-  }, [user, state.isDataLoaded]);
+  }, [user, state.isDataLoaded, state.isUnauthenticatedMode]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, syncToDatabase }}>

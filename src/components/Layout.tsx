@@ -19,11 +19,17 @@ import StatusBar from './StatusBar';
 import FolderSidebar from './FolderSidebar';
 import UserSettings from './settings/UserSettings';
 
-const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+interface LayoutProps {
+  children: React.ReactNode;
+  showAuthPage?: boolean;
+}
+
+const Layout: React.FC<LayoutProps> = ({ children, showAuthPage = false }) => {
   const { state, dispatch } = useApp();
   const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleSidebar = () => {
@@ -122,100 +128,106 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                 {state.theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
               </button>
               
-              {/* User Menu - 修复后的版本 */}
-              <div className="relative" ref={userMenuRef}>
-                <button 
-                  onClick={toggleUserMenu}
-                  className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${
-                    showUserMenu 
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
-                      : 'hover:bg-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                  title="用户菜单"
-                  aria-expanded={showUserMenu}
-                  aria-haspopup="true"
-                >
-                  {/* 显示用户头像或默认图标 */}
-                  <div className="flex items-center space-x-2">
-                    {userInfo?.user_profile_pic ? (
-                      <span className="text-lg">{userInfo.user_profile_pic}</span>
-                    ) : (
-                      <User size={18} />
-                    )}
-                    {userInfo?.user_name && (
-                      <span className="text-sm font-medium hidden sm:block max-w-32 truncate">
-                        {userInfo.user_name}
-                      </span>
-                    )}
-                    <ChevronDown 
-                      size={14} 
-                      className={`transition-transform duration-200 ${
-                        showUserMenu ? 'rotate-180' : ''
-                      }`} 
-                    />
-                  </div>
-                </button>
-                
-                {/* User Dropdown Menu - 精确控制的下拉菜单 */}
-                {showUserMenu && (
-                  <div 
-                    className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-dropdown"
-                    onClick={handleMenuClick}
-                    style={{
-                      // 确保菜单层级低于用户设置页面
-                      zIndex: 50000,
-                      // 防止菜单影响页面布局
-                      position: 'absolute',
-                      // 确保菜单有明确的边界
-                      contain: 'layout'
-                    }}
+              {/* 用户菜单或登录按钮 */}
+              {user ? (
+                /* 已登录用户菜单 */
+                <div className="relative" ref={userMenuRef}>
+                  <button 
+                    onClick={toggleUserMenu}
+                    className={`flex items-center space-x-2 p-2 rounded-lg transition-all duration-200 ${
+                      showUserMenu 
+                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
+                        : 'hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                    title="用户菜单"
+                    aria-expanded={showUserMenu}
+                    aria-haspopup="true"
                   >
-                    {/* 菜单头部 - 用户信息 */}
-                    <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
-                      <div className="flex items-center space-x-3 mb-1">
-                        {userInfo?.user_profile_pic && (
-                          <span className="text-xl">{userInfo.user_profile_pic}</span>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                            {userInfo?.user_name || '用户'}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {user?.email}
-                          </p>
+                    <div className="flex items-center space-x-2">
+                      {userInfo?.user_profile_pic ? (
+                        <span className="text-lg">{userInfo.user_profile_pic}</span>
+                      ) : (
+                        <User size={18} />
+                      )}
+                      {userInfo?.user_name && (
+                        <span className="text-sm font-medium hidden sm:block max-w-32 truncate">
+                          {userInfo.user_name}
+                        </span>
+                      )}
+                      <ChevronDown 
+                        size={14} 
+                        className={`transition-transform duration-200 ${
+                          showUserMenu ? 'rotate-180' : ''
+                        }`} 
+                      />
+                    </div>
+                  </button>
+                  
+                  {/* User Dropdown Menu */}
+                  {showUserMenu && (
+                    <div 
+                      className="absolute right-0 top-full mt-1 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-dropdown"
+                      onClick={handleMenuClick}
+                      style={{
+                        zIndex: 50000,
+                        position: 'absolute',
+                        contain: 'layout'
+                      }}
+                    >
+                      <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-600">
+                        <div className="flex items-center space-x-3 mb-1">
+                          {userInfo?.user_profile_pic && (
+                            <span className="text-xl">{userInfo.user_profile_pic}</span>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                              {userInfo?.user_name || '用户'}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                              {user?.email}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    {/* 菜单选项 */}
-                    <div className="py-1">
-                      <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          setShowSettings(true);
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 text-gray-700 dark:text-gray-300 transition-colors"
-                      >
-                        <Settings size={16} />
-                        <span>账户设置</span>
-                      </button>
                       
-                      <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
-                      
-                      <button
-                        onClick={() => {
-                          setShowUserMenu(false);
-                          handleSignOut();
-                        }}
-                        className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-3 text-red-600 dark:text-red-400 transition-colors"
-                      >
-                        <LogOut size={16} />
-                        <span>退出登录</span>
-                      </button>
+                      <div className="py-1">
+                        <button
+                          onClick={() => {
+                            setShowUserMenu(false);
+                            setShowSettings(true);
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center space-x-3 text-gray-700 dark:text-gray-300 transition-colors"
+                        >
+                          <Settings size={16} />
+                          <span>账户设置</span>
+                        </button>
+                        
+                        <div className="border-t border-gray-200 dark:border-gray-600 my-1"></div>
+                        
+                        <button
+                          onClick={() => {
+                            setShowUserMenu(false);
+                            handleSignOut();
+                          }}
+                          className="w-full px-4 py-2 text-left text-sm hover:bg-red-50 dark:hover:bg-red-900/20 flex items-center space-x-3 text-red-600 dark:text-red-400 transition-colors"
+                        >
+                          <LogOut size={16} />
+                          <span>退出登录</span>
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                )}
-              </div>
+                  )}
+                </div>
+              ) : (
+                /* 未登录用户的登录按钮 */
+                <button
+                  onClick={() => setShowAuthModal(true)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <User size={16} />
+                  <span>登录</span>
+                </button>
+              )}
             </div>
           </div>
         </header>
@@ -265,6 +277,28 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       {/* User Settings Modal */}
       {showSettings && (
         <UserSettings onClose={() => setShowSettings(false)} />
+      )}
+      
+      {/* Auth Modal for unauthenticated users */}
+      {showAuthModal && !user && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal-backdrop">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden z-modal">
+            <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
+              <h2 className="text-xl font-bold text-gray-900 dark:text-white">
+                登录或注册
+              </h2>
+              <button
+                onClick={() => setShowAuthModal(false)}
+                className="p-2 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <AuthPage />
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
