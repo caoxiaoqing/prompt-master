@@ -48,30 +48,13 @@ const StatusBar: React.FC = () => {
   // 如果用户没有打开任何任务文件，只显示基本信息
   if (!state.currentTask) {
     const basicStatusItems = [];
-    
-    if (isUnauthenticated) {
-      basicStatusItems.push({
-        icon: Database,
-        label: '模式',
-        value: '免费体验',
-        color: 'text-yellow-600 dark:text-yellow-400'
-      });
-      basicStatusItems.push({
-        icon: Hash,
-        label: '剩余次数',
-        value: `${state.unauthenticatedUsage.remaining}/${state.unauthenticatedUsage.limit}`,
-        color: state.unauthenticatedUsage.remaining > 0 
-          ? 'text-green-600 dark:text-green-400'
-          : 'text-red-600 dark:text-red-400'
-      });
-    } else {
-      basicStatusItems.push({
-        icon: Database,
-        label: '状态',
-        value: '无任务',
-        color: 'text-pink-600 dark:text-pink-400'
-      });
-    }
+
+    basicStatusItems.push({
+      icon: Database,
+      label: '状态',
+      value: '无任务',
+      color: 'text-pink-600 dark:text-pink-400'
+    });
 
     return (
       <motion.div
@@ -209,7 +192,12 @@ const StatusBar: React.FC = () => {
   
   // 如果用户有自定义模型但没有选择，显示提示
   if (!isUnauthenticated && hasCustomModels && !selectedCustomModel) {
-    const statusItems = [
+    const statusItems: Array<{
+      icon: any;
+      label: string;
+      value: string;
+      color: string;
+    }> = [
     ];
 
     return (
@@ -264,7 +252,12 @@ const StatusBar: React.FC = () => {
   }
   
   // 显示模型的详细信息
-  const statusItems = [
+  const statusItems: Array<{
+    icon: any;
+    label: string;
+    value: string;
+    color: string;
+  }> = [
     {
       icon: Hash,
       label: 'Prompt Tokens',
@@ -279,51 +272,32 @@ const StatusBar: React.FC = () => {
     }
   ];
   
-  if (isUnauthenticated) {
-    // 未登录用户状态
-    statusItems.unshift({
-      icon: Cpu,
-      label: '模式',
-      value: '免费体验',
-      color: 'text-yellow-600 dark:text-yellow-400'
-    });
-    statusItems.push({
+  statusItems.unshift({
+    icon: Cpu,
+    label: '模型',
+    value: selectedCustomModel?.name || '默认',
+    color: 'text-purple-600 dark:text-purple-400'
+  });
+  statusItems.push(
+    {
       icon: Hash,
-      label: '剩余次数',
-      value: `${state.unauthenticatedUsage.remaining}/${state.unauthenticatedUsage.limit}`,
-      color: state.unauthenticatedUsage.remaining > 0 
-        ? 'text-green-600 dark:text-green-400'
-        : 'text-red-600 dark:text-red-400'
-    });
-  } else {
-    // 已登录用户状态
-    statusItems.unshift({
-      icon: Cpu,
-      label: '模型',
-      value: selectedCustomModel?.name || '未选择',
-      color: 'text-purple-600 dark:text-purple-400'
-    });
-    statusItems.push(
-      {
-        icon: Hash,
-        label: 'Top-K',
-        value: currentModelParams?.top_k?.toString() || '50',
-        color: 'text-blue-600 dark:text-blue-400'
-      },
-      {
-        icon: Zap,
-        label: 'Top-P',
-        value: currentModelParams?.top_p?.toString() || '1.0',
-        color: 'text-green-600 dark:text-green-400'
-      },
-      {
-        icon: Thermometer,
-        label: 'Temperature',
-        value: currentModelParams?.temperature?.toString() || '0.7',
-        color: 'text-yellow-600 dark:text-yellow-400'
-      }
-    );
-  }
+      label: 'Top-K',
+      value: currentModelParams?.top_k?.toString() || '50',
+      color: 'text-blue-600 dark:text-blue-400'
+    },
+    {
+      icon: Zap,
+      label: 'Top-P',
+      value: currentModelParams?.top_p?.toString() || '1.0',
+      color: 'text-green-600 dark:text-green-400'
+    },
+    {
+      icon: Thermometer,
+      label: 'Temperature',
+      value: currentModelParams?.temperature?.toString() || '0.7',
+      color: 'text-yellow-600 dark:text-yellow-400'
+    }
+  );
 
   return (
     <motion.div

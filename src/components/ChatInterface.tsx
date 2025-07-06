@@ -20,6 +20,7 @@ import { ChatMessage } from '../types';
 import ModelSettingsModal from './ModelSettingsModal';
 import { OpenAIService } from '../lib/openaiService';
 import { supabase } from '../lib/supabase';
+import { generateMockResponse } from '../utils/mockData';
 
 interface ChatInterfaceProps {
   systemPrompt: string;
@@ -45,7 +46,7 @@ class UnauthenticatedAIService {
     try {
       console.log('🚀 发送未登录用户请求到 Supabase Edge Function...');
       
-      const { data, error } = await supabase.functions.invoke('openai-completion', {
+      const { data, error } = await supabase.functions.invoke('openai-completion-v2', {
         body: { messages }
       });
       
@@ -605,7 +606,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <span>聊天测试</span>
               {isUnauthenticated && (
                 <span className="text-xs bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 px-2 py-1 rounded-full">
-                  免费模式
+                  未登录用户
                 </span>
               )}
             </h3>
@@ -648,21 +649,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               </div>
             )}
             
-            {/* 未登录用户的使用次数显示 */}
-            {isUnauthenticated && (
-              <div className="flex items-center space-x-2 text-sm">
-                <span className="text-gray-500 dark:text-gray-400">今日剩余:</span>
-                <span className={`font-medium ${
-                  state.unauthenticatedUsage.remaining > 3 
-                    ? 'text-green-600 dark:text-green-400' 
-                    : state.unauthenticatedUsage.remaining > 0
-                    ? 'text-yellow-600 dark:text-yellow-400'
-                    : 'text-red-600 dark:text-red-400'
-                }`}>
-                  {state.unauthenticatedUsage.remaining}/{state.unauthenticatedUsage.limit}
-                </span>
-              </div>
-            )}
+
           </div>
           
           <div className="flex items-center space-x-3">
@@ -700,11 +687,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <div className="text-center">
                 <Bot size={48} className="mx-auto mb-4 opacity-50" />
                 <p className="text-lg font-medium mb-2">
-                  {isUnauthenticated ? '开始免费 AI 对话' : '开始 AI 对话测试'}
+                  {isUnauthenticated ? '开始 AI 对话测试' : '开始 AI 对话测试'}
                 </p>
                 <p className="text-sm">
                   {isUnauthenticated 
-                    ? `每日可免费使用 ${state.unauthenticatedUsage.limit} 次，今日剩余 ${state.unauthenticatedUsage.remaining} 次`
+                    ? '💡 可在左侧设置 System Prompt 来定制AI的回答风格（可选）'
                     : '输入用户消息来测试AI模型的回答效果'
                   }
                 </p>
@@ -809,7 +796,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               disabled={
                 isLoading || 
                 (!isUnauthenticated && !hasCustomModels) ||
-                (isUnauthenticated && state.unauthenticatedUsage.remaining <= 0)
+                (isUnauthenticated && state.unauthenticatedUsage.remaining <= 0) 
               }
               className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
               rows={Math.min(Math.max(userInput.split('\n').length, 1), 5)}
@@ -827,6 +814,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
                     剩余 {state.unauthenticatedUsage.remaining} 次
                   </span>
                 )}
+
               </div>
             </div>
           </div>

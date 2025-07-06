@@ -558,6 +558,9 @@ const PromptEditor: React.FC = () => {
     };
   };
 
+  // 1. 添加未登录状态判断
+  const isUnauthenticated = state.isUnauthenticatedMode;
+
   if (!state.currentTask) {
     return (
       <div className="h-full flex items-center justify-center bg-gray-50 dark:bg-gray-900">
@@ -584,7 +587,7 @@ const PromptEditor: React.FC = () => {
               <h2 className="font-semibold">{state.currentTask.name}</h2>
               
               {/* 版本信息显示 - 实时更新，优先显示加载的版本 */}
-              {versionInfo && (
+              {versionInfo && !isUnauthenticated && (
                 <div className="flex items-center space-x-2 px-3 py-1.5 bg-gray-50 dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600">
                   <versionInfo.icon size={14} className={versionInfo.color} />
                   <span className={`text-sm font-medium ${versionInfo.color}`}>
@@ -639,7 +642,7 @@ const PromptEditor: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            {state.currentTask.versions && state.currentTask.versions.length > 0 && (
+            {!isUnauthenticated && state.currentTask.versions && state.currentTask.versions.length > 0 && (
               <button
                 onClick={() => setShowVersionHistory(true)}
                 className="flex items-center space-x-2 px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors"
@@ -650,45 +653,47 @@ const PromptEditor: React.FC = () => {
             )}
             
             {/* 保存版本按钮 - 修复工具提示被遮挡的问题 */}
-            <div className="relative group">
-              <button
-                onClick={() => setShowSaveVersionModal(true)}
-                disabled={saveButtonState.disabled}
-                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                  saveButtonState.disabled
-                    ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
-                    : 'bg-green-600 text-white hover:bg-green-700'
-                }`}
-                title={saveButtonState.tooltip}
-              >
-                <Save size={16} />
-                <span>{saveButtonState.text}</span>
-              </button>
-              
-              {/* 工具提示 - 修复 z-index 层级问题 */}
-              {saveButtonState.disabled && (
-                <div 
-                  className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
-                  style={{
-                    // 关键修复：使用极高的 z-index 确保工具提示在所有元素之上
-                    zIndex: 99999,
-                    // 确保工具提示不会被其他元素遮挡
-                    position: 'absolute',
-                    // 防止工具提示影响其他元素的布局
-                    contain: 'layout'
-                  }}
+            {!isUnauthenticated && (
+              <div className="relative group">
+                <button
+                  onClick={() => setShowSaveVersionModal(true)}
+                  disabled={saveButtonState.disabled}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
+                    saveButtonState.disabled
+                      ? 'bg-gray-300 dark:bg-gray-600 text-gray-500 dark:text-gray-400 cursor-not-allowed'
+                      : 'bg-green-600 text-white hover:bg-green-700'
+                  }`}
+                  title={saveButtonState.tooltip}
                 >
-                  {saveButtonState.tooltip}
+                  <Save size={16} />
+                  <span>{saveButtonState.text}</span>
+                </button>
+                
+                {/* 工具提示 - 修复 z-index 层级问题 */}
+                {saveButtonState.disabled && (
                   <div 
-                    className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
+                    className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 dark:bg-gray-700 text-white text-sm rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none whitespace-nowrap"
                     style={{
-                      // 确保箭头也有正确的层级
-                      zIndex: 99999
+                      // 关键修复：使用极高的 z-index 确保工具提示在所有元素之上
+                      zIndex: 99999,
+                      // 确保工具提示不会被其他元素遮挡
+                      position: 'absolute',
+                      // 防止工具提示影响其他元素的布局
+                      contain: 'layout'
                     }}
-                  ></div>
-                </div>
-              )}
-            </div>
+                  >
+                    {saveButtonState.tooltip}
+                    <div 
+                      className="absolute top-full left-1/2 transform -translate-x-1/2 border-4 border-transparent border-t-gray-900 dark:border-t-gray-700"
+                      style={{
+                        // 确保箭头也有正确的层级
+                        zIndex: 99999
+                      }}
+                    ></div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
