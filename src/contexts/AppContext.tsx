@@ -4,6 +4,7 @@ import { useAuth } from './AuthContext';
 import { TaskService } from '../lib/taskService';
 import { syncService } from '../lib/syncService';
 import { useLocalStorage } from '../hooks/useLocalStorage';
+import { supabase } from '../lib/supabase';
 
 interface AppState {
   versions: PromptVersion[];
@@ -589,6 +590,29 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       dispatch({ type: 'SET_DATA_LOADED', payload: false });
     }
   }, [user, state.isDataLoaded, state.isUnauthenticatedMode]);
+
+  // === 新增：未登录 usage 初始化 ===
+  useEffect(() => {
+    if (state.isUnauthenticatedMode) {
+      supabase.functions.invoke('initialize_usage_status', { body: {} })
+        .then(({ data, error }) => {
+          if (!error && data && !data.error) {
+            dispatch({ type: 'UPDATE_UNAUTH_USAGE', payload: data });
+          } else if (data && data.error) {
+            dispatch({ type: 'UPDATE_UNAUTH_USAGE', payload: data });
+            window.alert('今日免费消息次数已用完，请登录继续使用');
+          } else {
+            if (error) {
+              console.error('获取未登录 usage 状态失败:', error);
+            }
+          }
+        })
+        .catch((err) => {
+          console.error('获取未登录 usage 状态失败:', err);
+        });
+    }
+    // eslint-disable-next-line
+  }, [state.isUnauthenticatedMode]);
 
   return (
     <AppContext.Provider value={{ state, dispatch, syncToDatabase }}>

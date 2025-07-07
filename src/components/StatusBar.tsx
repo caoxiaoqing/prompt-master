@@ -275,7 +275,7 @@ const StatusBar: React.FC = () => {
   statusItems.unshift({
     icon: Cpu,
     label: '模型',
-    value: selectedCustomModel?.name || '默认',
+    value: selectedCustomModel?.name || 'DEEPSEEK',
     color: 'text-purple-600 dark:text-purple-400'
   });
   statusItems.push(
