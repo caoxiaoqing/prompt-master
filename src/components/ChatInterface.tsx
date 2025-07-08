@@ -49,6 +49,9 @@ class UnauthenticatedAIService {
       const { data, error } = await supabase.functions.invoke('openai-completion-v2', {
         body: { messages }
       });
+
+      console.log('error = ', error);
+      console.log('data = ', data);
       
       if (error) {
         console.error('❌ Edge Function 调用失败:', error);
@@ -263,6 +266,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleSendMessage = async () => {
     // 关键修复：移除 systemPrompt 的必需检查，允许无 system prompt 时聊天
     if (!userInput.trim()) return;
+    const messageToSend = userInput.trim();
+    // 生成唯一 id
+    const userMessageId = Date.now().toString();
+    const loadingMessageId = (Date.now() + 1).toString();
     
     // 检查是否选择了模型（仅对已登录用户）
     if (!isUnauthenticated && !state.selectedCustomModel) {
@@ -277,14 +284,15 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
 
     const userMessage: ChatMessage = {
-      id: Date.now().toString(),
+      id: userMessageId,
       role: 'user',
-      content: userInput.trim(),
+      content: messageToSend,
       timestamp: new Date()
     };
+    
 
     const loadingMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
+      id: loadingMessageId,
       role: 'assistant',
       content: '',
       timestamp: new Date(),
@@ -318,7 +326,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             role: m.role,
             content: m.content
           })),
-          { role: 'user', content: userInput.trim() }
+          { role: 'user', content: messageToSend }
         ];
         
         const { content: responseContent, tokenUsage, responseTime, usageInfo } = await UnauthenticatedAIService.sendChatRequest(conversationContext);
@@ -362,7 +370,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
             role: m.role,
             content: m.content
           })),
-          { role: 'user', content: userInput.trim() }
+          { role: 'user', content: messageToSend }
         ];
 
         // 创建 OpenAI 客户端
@@ -448,6 +456,10 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       
       // 设置用户友好的错误消息
       let errorMessage = '发送消息失败，请稍后重试';
+      // 1. 恢复输入内容
+      setUserInput(messageToSend);
+      // 2. 移除刚刚发出去的两条消息
+      setMessages(prev => prev.filter(msg => msg.id !== userMessageId && msg.id !== loadingMessageId));
 
       if (error instanceof Error) {
         console.error('错误详情:', error.message);
