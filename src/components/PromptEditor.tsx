@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Save, 
@@ -61,6 +61,8 @@ const PromptEditor: React.FC = () => {
     return TaskService.getDefaultModelParams(customModel);
   };
 
+  const currentTaskIdRef = useRef<string | null>(null);
+
   // 使用任务持久化 hook
   const { syncModelParams, createTask, forceSyncAll } = useTaskPersistence({
     taskId: state.currentTask ? parseInt(state.currentTask.id) : null,
@@ -76,154 +78,157 @@ const PromptEditor: React.FC = () => {
   // 当选择新任务时，更新编辑器内容
   useEffect(() => {
     if (state.currentTask) {
-      console.log('🔄 切换到新任务:', {
-        taskId: state.currentTask.id,
-        taskName: state.currentTask.name,
-        createdInDB: state.currentTask.createdInDB
-      });
-      
-      // 保存当前 system prompt 到 state 中，避免在聊天时丢失
-      if (state.currentTask.content) {
-        onSystemPromptChange(state.currentTask.content);
-      }
-      
-      // 关键修复：检查任务是否有记录的加载版本
-      const loadedVersionId = state.currentTask.currentLoadedVersionId;
-      const versions = state.currentTask.versions || [];
-      const loadedVersion = loadedVersionId 
-        ? versions.find(v => v.id === loadedVersionId) 
-        : null;
-
-      if (loadedVersion) {
-        // 如果有记录的加载版本，恢复该版本的状态
-        console.log('恢复任务的历史版本状态:', loadedVersion.name);
-        setPrompt(loadedVersion.content || '');
-        onSystemPromptChange(loadedVersion.content || '');
-        setTemperature(loadedVersion.temperature || 0.7);
-        setMaxTokens(loadedVersion.maxTokens || 1000);
+      if (currentTaskIdRef.current !== state.currentTask.id) {
+        console.log('🔄 切换到新任务:', {
+          taskId: state.currentTask.id,
+          taskName: state.currentTask.name,
+          createdInDB: state.currentTask.createdInDB
+        });
         
-        // 设置聊天历史
-        const chatHistory = loadedVersion.chatHistory || [];
-        setCurrentChatHistory(chatHistory);
-        setCurrentLoadedVersion(loadedVersion);
-        
-        // 更新模型选择
-        if (loadedVersion.model) {
-          dispatch({ type: 'SET_SELECTED_MODEL', payload: loadedVersion.model });
+        // 保存当前 system prompt 到 state 中，避免在聊天时丢失
+        if (state.currentTask.content) {
+          onSystemPromptChange(state.currentTask.content);
         }
-      } else {
-        // 如果没有记录的加载版本，使用任务的当前状态
-        setPrompt(state.currentTask.content || '');
-        onSystemPromptChange(state.currentTask.content || '');
-        setTemperature(state.currentTask.temperature || 0.7);
-        setMaxTokens(state.currentTask.maxTokens || 1000);
         
-        // 设置聊天历史
-        const chatHistory = state.currentTask.currentChatHistory || [];
-        setCurrentChatHistory(chatHistory);
-        setCurrentLoadedVersion(null);
-        
-        // 🔄 检测到新任务，准备创建数据库记录
-        if (!state.currentTask.createdInDB && userInfo?.custom_models && userInfo.custom_models.length > 0) {
-          console.log('🔄 检测到新任务，准备创建数据库记录...', {
-            taskId: state.currentTask.id,
-            taskName: state.currentTask.name,
-            hasUser: !!user
-          });
+        // 关键修复：检查任务是否有记录的加载版本
+        const loadedVersionId = state.currentTask.currentLoadedVersionId;
+        const versions = state.currentTask.versions || [];
+        const loadedVersion = loadedVersionId 
+          ? versions.find(v => v.id === loadedVersionId) 
+          : null;
+
+        if (loadedVersion) {
+          // 如果有记录的加载版本，恢复该版本的状态
+          console.log('恢复任务的历史版本状态:', loadedVersion.name);
+          setPrompt(loadedVersion.content || '');
+          onSystemPromptChange(loadedVersion.content || '');
+          setTemperature(loadedVersion.temperature || 0.7);
+          setMaxTokens(loadedVersion.maxTokens || 1000);
           
-          // 获取默认模型参数
-          const defaultModel = userInfo.custom_models.find((model: any) => model.isDefault) || userInfo.custom_models[0];
-          if (defaultModel && user) {
-            const defaultModelParams = TaskService.getDefaultModelParams(defaultModel);
-            
-            // 异步创建数据库记录
-            createTask(
-              parseInt(state.currentTask.id),
-              state.currentTask.name,
-              state.folders.find(f => f.id === state.currentTask.folderId)?.name || '默认文件夹',
-              defaultModelParams
-            ).then(() => {
-              console.log('✅ 任务数据库记录创建成功，更新本地状态');
-              // 更新任务状态，标记为已在数据库中创建
-              const updatedTask = {
-                ...state.currentTask!,
-                createdInDB: true
-              };
-              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-            }).catch((error) => {
-              console.error('❌ 创建任务数据库记录失败:', error);
-              // 不阻断用户操作，只记录错误
-              
-              // 如果是超时错误，显示用户友好的提示
-              if (error.message && error.message.includes('超时')) {
-                console.warn('⏰ 任务创建超时，但不影响本地使用:', error.message);
-                // 这里可以添加用户提示，比如显示一个 toast 通知
-                // showNotification('warning', '网络较慢，任务已在本地创建，数据库同步将在后台继续尝试');
-              } else {
-                console.warn('⚠️ 任务创建失败，但不影响用户使用:', error.message);
-              }
+          // 设置聊天历史
+          const chatHistory = loadedVersion.chatHistory || [];
+          setCurrentChatHistory(chatHistory);
+          setCurrentLoadedVersion(loadedVersion);
+          
+          // 更新模型选择
+          if (loadedVersion.model) {
+            dispatch({ type: 'SET_SELECTED_MODEL', payload: loadedVersion.model });
+          }
+        } else {
+          // 如果没有记录的加载版本，使用任务的当前状态
+          setPrompt(state.currentTask.content || '');
+          onSystemPromptChange(state.currentTask.content || '');
+          setTemperature(state.currentTask.temperature || 0.7);
+          setMaxTokens(state.currentTask.maxTokens || 1000);
+          
+          // 设置聊天历史
+          const chatHistory = state.currentTask.currentChatHistory || [];
+          setCurrentChatHistory(chatHistory);
+          setCurrentLoadedVersion(null);
+          
+          // 🔄 检测到新任务，准备创建数据库记录
+          if (!state.currentTask.createdInDB && userInfo?.custom_models && userInfo.custom_models.length > 0) {
+            console.log('🔄 检测到新任务，准备创建数据库记录...', {
+              taskId: state.currentTask.id,
+              taskName: state.currentTask.name,
+              hasUser: !!user
             });
-          }
-        }
-
-        // 如果是新任务且用户已登录，创建数据库记录
-        if (false && user && state.currentTask && !state.currentTask.createdInDB) {
-          console.log('🔄 检测到新任务，准备创建数据库记录...', {
-            taskId: state.currentTask.id,
-            taskName: state.currentTask.name,
-            hasUser: !!user
-          });
-          
-          const taskId = parseInt(state.currentTask.id);
-          
-          // 检查 taskId 是否有效
-          if (isNaN(taskId) || taskId <= 0) {
-            console.error('❌ 无效的 taskId:', state.currentTask.id);
-            return;
-          }
-          
-          const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
-          const defaultParams = getCurrentModelParams();
-          
-          // 添加创建状态指示
-          console.log('📊 开始创建任务数据库记录，参数检查:', {
-            taskId,
-            taskName: state.currentTask.name,
-            folderName,
-            defaultParams,
-            userId: user.id,
-            userEmail: user.email
-          });
-          
-          createTask(taskId, state.currentTask.name, folderName, defaultParams)
-            .then(() => {
-              console.log('✅ 任务数据库记录创建成功，更新本地状态');
-              // 标记任务已在数据库中创建
-              const updatedTask = { ...state.currentTask!, createdInDB: true };
-              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-            })
-            .catch(error => {
-              console.error('❌ 创建任务数据库记录失败:', {
-                error,
-                taskId,
-                taskName: state.currentTask?.name,
-                userId: user.id,
-                errorMessage: error.message,
-                errorStack: error.stack
-              });
+            
+            // 获取默认模型参数
+            const defaultModel = userInfo.custom_models.find((model: any) => model.isDefault) || userInfo.custom_models[0];
+            if (defaultModel && user) {
+              const defaultModelParams = TaskService.getDefaultModelParams(defaultModel);
               
-              // 如果不是重复键错误，可以考虑显示错误提示
-              if (!error.message?.includes('duplicate key')) {
-                console.warn('⚠️ 任务创建失败，但不影响用户使用:', error.message);
-                // 这里可以添加用户友好的错误提示
-              } else {
-                console.log('ℹ️ 任务可能已存在，标记为已创建');
-                // 如果是重复键错误，说明任务已存在，标记为已创建
+              // 异步创建数据库记录
+              createTask(
+                parseInt(state.currentTask.id),
+                state.currentTask.name,
+                state.folders.find(f => f.id === state.currentTask.folderId)?.name || '默认文件夹',
+                defaultModelParams
+              ).then(() => {
+                console.log('✅ 任务数据库记录创建成功，更新本地状态');
+                // 更新任务状态，标记为已在数据库中创建
+                const updatedTask = {
+                  ...state.currentTask!,
+                  createdInDB: true
+                };
+                dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+              }).catch((error) => {
+                console.error('❌ 创建任务数据库记录失败:', error);
+                // 不阻断用户操作，只记录错误
+                
+                // 如果是超时错误，显示用户友好的提示
+                if (error.message && error.message.includes('超时')) {
+                  console.warn('⏰ 任务创建超时，但不影响本地使用:', error.message);
+                  // 这里可以添加用户提示，比如显示一个 toast 通知
+                  // showNotification('warning', '网络较慢，任务已在本地创建，数据库同步将在后台继续尝试');
+                } else {
+                  console.warn('⚠️ 任务创建失败，但不影响用户使用:', error.message);
+                }
+              });
+            }
+          }
+
+          // 如果是新任务且用户已登录，创建数据库记录
+          if (false && user && state.currentTask && !state.currentTask.createdInDB) {
+            console.log('🔄 检测到新任务，准备创建数据库记录...', {
+              taskId: state.currentTask.id,
+              taskName: state.currentTask.name,
+              hasUser: !!user
+            });
+            
+            const taskId = parseInt(state.currentTask.id);
+            
+            // 检查 taskId 是否有效
+            if (isNaN(taskId) || taskId <= 0) {
+              console.error('❌ 无效的 taskId:', state.currentTask.id);
+              return;
+            }
+            
+            const folderName = state.folders.find(f => f.id === state.currentTask?.folderId)?.name || '默认文件夹';
+            const defaultParams = getCurrentModelParams();
+            
+            // 添加创建状态指示
+            console.log('📊 开始创建任务数据库记录，参数检查:', {
+              taskId,
+              taskName: state.currentTask.name,
+              folderName,
+              defaultParams,
+              userId: user.id,
+              userEmail: user.email
+            });
+            
+            createTask(taskId, state.currentTask.name, folderName, defaultParams)
+              .then(() => {
+                console.log('✅ 任务数据库记录创建成功，更新本地状态');
+                // 标记任务已在数据库中创建
                 const updatedTask = { ...state.currentTask!, createdInDB: true };
                 dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-              }
-            });
+              })
+              .catch(error => {
+                console.error('❌ 创建任务数据库记录失败:', {
+                  error,
+                  taskId,
+                  taskName: state.currentTask?.name,
+                  userId: user.id,
+                  errorMessage: error.message,
+                  errorStack: error.stack
+                });
+                
+                // 如果不是重复键错误，可以考虑显示错误提示
+                if (!error.message?.includes('duplicate key')) {
+                  console.warn('⚠️ 任务创建失败，但不影响用户使用:', error.message);
+                  // 这里可以添加用户友好的错误提示
+                } else {
+                  console.log('ℹ️ 任务可能已存在，标记为已创建');
+                  // 如果是重复键错误，说明任务已存在，标记为已创建
+                  const updatedTask = { ...state.currentTask!, createdInDB: true };
+                  dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+                }
+              });
+          }
         }
+        currentTaskIdRef.current = state.currentTask.id;
       }
     } else {
       setPrompt('');
@@ -233,6 +238,11 @@ const PromptEditor: React.FC = () => {
       setCurrentLoadedVersion(null);
     }
   }, [state.currentTask, dispatch, user, userInfo, createTask]);
+
+  // 添加深度比较工具函数
+  const deepEqual = (a: any, b: any): boolean => {
+    return JSON.stringify(a) === JSON.stringify(b);
+  };
 
   // 自动保存当前任务的内容 - 添加防抖和条件检查
   useEffect(() => {
@@ -251,16 +261,18 @@ const PromptEditor: React.FC = () => {
         };
         
         // 更新状态
-        dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+        if (!deepEqual(updatedTask, state.currentTask)) {
+          dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
         
-        // 确保 system prompt 在 ChatInterface 中也被更新
-        onSystemPromptChange(prompt);
+          // 确保 system prompt 在 ChatInterface 中也被更新
+          onSystemPromptChange(prompt);
         
-        // 保存到本地存储
-        saveToLocalStorage(
-          state.folders,
-          state.tasks.map(t => t.id === state.currentTask?.id ? updatedTask : t)
-        );
+          // 保存到本地存储
+          saveToLocalStorage(
+            state.folders,
+            state.tasks.map(t => t.id === state.currentTask?.id ? updatedTask : t)
+          );
+        }
       }, 1000); // 1秒后自动保存
 
       return () => clearTimeout(timeoutId);
@@ -741,13 +753,24 @@ const PromptEditor: React.FC = () => {
 例如：
 You are a helpful AI assistant. Please provide clear, accurate, and helpful responses to user questions. Always be polite and professional."
             className="flex-1 p-4 bg-white dark:bg-gray-900 resize-none focus:outline-none text-sm leading-relaxed"
+            onBlur={() => {
+              if (state.currentTask && prompt !== state.currentTask.content) {
+                dispatch({
+                  type: 'UPDATE_TASK',
+                  payload: {
+                    ...state.currentTask,
+                    content: prompt,
+                    updatedAt: new Date()
+                  }
+                });
+              }
+            }}
           />
         </div>
 
         {/* Chat Interface */}
         <ChatInterface 
           systemPrompt={prompt}
-          onSystemPromptChange={setPrompt}
           temperature={temperature || 0.7}
           maxTokens={maxTokens || 1000}
           onModelSettingsChange={handleModelSettingsChange}

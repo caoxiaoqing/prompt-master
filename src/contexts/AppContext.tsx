@@ -201,6 +201,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
     // 文件夹操作
     case 'ADD_FOLDER':
       newState = { ...state, folders: [...state.folders, action.payload] };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'UPDATE_FOLDER':
       newState = {
@@ -209,6 +214,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
           f.id === action.payload.id ? action.payload : f
         )
       };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'DELETE_FOLDER':
       // 删除文件夹时，将其中的任务移动到默认文件夹
@@ -220,11 +230,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ),
         selectedFolderId: state.selectedFolderId === action.payload ? 'default' : state.selectedFolderId
       };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
       
     // 任务操作
     case 'ADD_TASK':
       newState = { ...state, tasks: [...state.tasks, action.payload] };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'UPDATE_TASK':
       newState = {
@@ -236,6 +256,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
           ? action.payload 
           : state.currentTask
       };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'DELETE_TASK':
       newState = {
@@ -243,12 +268,27 @@ function appReducer(state: AppState, action: AppAction): AppState {
         tasks: state.tasks.filter(t => t.id !== action.payload),
         currentTask: state.currentTask?.id === action.payload ? null : state.currentTask
       };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'SET_CURRENT_TASK':
       newState = { ...state, currentTask: action.payload };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'SET_SELECTED_FOLDER':
       newState = { ...state, selectedFolderId: action.payload };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'TOGGLE_FOLDER':
       const newExpandedFolders = new Set(state.expandedFolders);
@@ -258,6 +298,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
         newExpandedFolders.add(action.payload);
       }
       newState = { ...state, expandedFolders: newExpandedFolders };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'MOVE_TASK':
       newState = {
@@ -268,6 +313,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
             : t
         )
       };
+      localStorage.setItem('prompt-optimizer-data', JSON.stringify({
+        folders: newState.folders,
+        tasks: newState.tasks,
+        selectedFolderId: newState.selectedFolderId
+      }));
       break;
     case 'IMPORT_PROJECT':
       newState = {

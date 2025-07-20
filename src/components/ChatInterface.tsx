@@ -24,7 +24,6 @@ import { generateMockResponse } from '../utils/mockData';
 
 interface ChatInterfaceProps {
   systemPrompt: string;
-  onSystemPromptChange: (prompt: string) => void;
   temperature: number;
   maxTokens: number;
   onModelSettingsChange: (temperature: number, maxTokens: number) => void;
@@ -98,11 +97,10 @@ class UnauthenticatedAIService {
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({ 
   systemPrompt, 
-  onSystemPromptChange,
   temperature,
   maxTokens,
   onModelSettingsChange,
-  onChatHistoryChange
+  onChatHistoryChange,
 }) => {
   const { state, dispatch } = useApp();
   const { userInfo } = useAuth();
@@ -328,6 +326,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           })),
           { role: 'user', content: messageToSend }
         ];
+
+        console.log('conversationContext : ' + JSON.stringify(conversationContext, null, 2))
         
         const { content: responseContent, tokenUsage, responseTime, usageInfo } = await UnauthenticatedAIService.sendChatRequest(conversationContext);
         
@@ -598,7 +598,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   // 处理系统提示词变更
   const handleSystemPromptChange = (newPrompt: string) => {
     setLocalSystemPrompt(newPrompt);
-    onSystemPromptChange(newPrompt);
   };
 
   // 格式化响应时间为秒，小数点后保留2位
@@ -618,7 +617,7 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               <span>聊天测试</span>
               {isUnauthenticated && (
                 <span className="text-xs bg-yellow-100 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 px-2 py-1 rounded-full">
-                  未登录用户
+                  未登录
                 </span>
               )}
             </h3>
