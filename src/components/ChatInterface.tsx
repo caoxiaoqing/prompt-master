@@ -145,6 +145,9 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     } else {
       setMessages([]);
     }
+    // 切换任务时，重置错误提醒和输入框
+    setApiError(null);
+    setUserInput('');
   }, [state.currentTask?.id]); // 移除 dispatch 依赖，避免无限循环
 
   // 当用户有自定义模型时，自动设置默认模型
@@ -165,30 +168,32 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [isUnauthenticated, hasCustomModels, defaultModel, state.selectedCustomModel, dispatch]);
 
   // 当聊天历史变化时，自动保存到当前任务并通知父组件
-  useEffect(() => {
-    // 关键修复：添加条件检查，避免无限循环
-    if (state.currentTask && messages.length > 0 && !messages.some(m => m.isLoading)) {
-      // 检查消息是否真的发生了变化
-      const currentChatHistory = state.currentTask.currentChatHistory || [];
-      const messagesChanged = JSON.stringify(messages) !== JSON.stringify(currentChatHistory);
+  // useEffect(() => {
+  //   // 关键修复：添加条件检查，避免无限循环
+  //   if (state.currentTask && messages.length > 0 && !messages.some(m => m.isLoading)) {
+  //     // 检查消息是否真的发生了变化
+  //     const currentChatHistory = state.currentTask.currentChatHistory || [];
+  //     const messagesChanged = JSON.stringify(messages) !== JSON.stringify(currentChatHistory);
       
-      if (messagesChanged) {
-        console.log('💾 聊天历史发生变化，自动保存到任务');
-        const updatedTask = {
-          ...state.currentTask,
-          currentChatHistory: messages,
-          updatedAt: new Date()
-        };
-        dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
-      }
-    }
+  //     if (messagesChanged) {
+  //       console.log('💾 聊天历史发生变化，自动保存到任务');
+  //       console.log('messages : ' + JSON.stringify(messages))
+  //       console.log('currentChatHistory : ' + JSON.stringify(currentChatHistory))
+  //       const updatedTask = {
+  //         ...state.currentTask,
+  //         currentChatHistory: messages,
+  //         updatedAt: new Date()
+  //       };
+  //       dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+  //     }
+  //   }
     
-    // 通知父组件聊天历史变化
-    if (onChatHistoryChange) {
-      const filteredMessages = messages.filter(m => !m.isLoading);
-      onChatHistoryChange(filteredMessages);
-    }
-  }, [messages, state.currentTask?.id]); // 移除 dispatch 和 onChatHistoryChange 依赖
+  //   // 通知父组件聊天历史变化
+  //   if (onChatHistoryChange) {
+  //     const filteredMessages = messages.filter(m => !m.isLoading);
+  //     onChatHistoryChange(filteredMessages);
+  //   }
+  // }, [messages, state.currentTask?.id]); // 移除 dispatch 和 onChatHistoryChange 依赖
 
   // 单独处理任务更新，避免与消息更新形成循环
   const updateTaskWithMessages = useCallback((newMessages: ChatMessage[]) => {
@@ -353,6 +358,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           responseTime: responseTime
         };
 
+        if (state.currentTask) {
+          const finalMessages = [...messages, userMessage, assistantMessage];
+          const updatedTask = {
+            ...state.currentTask,
+            currentChatHistory: finalMessages,
+            updatedAt: new Date()
+          };
+          dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+        }
+
         setMessages(prev => 
           prev.map(msg => 
             msg.id === loadingMessage.id ? assistantMessage : msg
@@ -407,6 +422,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               responseTime: responseTime
             };
 
+            if (state.currentTask) {
+              const finalMessages = [...messages, userMessage, assistantMessage];
+              const updatedTask = {
+                ...state.currentTask,
+                currentChatHistory: finalMessages,
+                updatedAt: new Date()
+              };
+              dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+            }
+
             setMessages(prev => 
               prev.map(msg => 
                 msg.id === loadingMessage.id ? assistantMessage : msg
@@ -460,6 +485,16 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       setUserInput(messageToSend);
       // 2. 移除刚刚发出去的两条消息
       setMessages(prev => prev.filter(msg => msg.id !== userMessageId && msg.id !== loadingMessageId));
+
+      // 从全局 state 移除失败消息
+      if (state.currentTask) {
+        const updatedTask = {
+          ...state.currentTask,
+          currentChatHistory: messages.filter(msg => msg.id !== userMessageId && msg.id !== loadingMessageId),
+          updatedAt: new Date()
+        };
+        dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+      }
 
       if (error instanceof Error) {
         console.error('错误详情:', error.message);
