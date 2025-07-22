@@ -562,6 +562,23 @@ const FolderItem: React.FC<{
   setEditingTask
 }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuHovered, setMenuHovered] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<DOMRect | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleMenuToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (moreButtonRef.current) {
+      // 获取菜单按钮的位置信息
+      const rect = moreButtonRef.current.getBoundingClientRect();
+      setMenuPosition(rect);
+    }
+    
+    setShowMenu(!showMenu);
+    setMenuHovered(false);
+  };
 
   // 处理文件夹名称点击 - 切换展开/收起状态
   const handleFolderNameClick = (e: React.MouseEvent) => {
@@ -581,16 +598,18 @@ const FolderItem: React.FC<{
   // 点击其他地方时关闭菜单
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showMenu) {
+      const menuElement = document.querySelector(".folder-menu, .task-menu");
+      if (menuElement && !menuElement.contains(event.target as Node) && !menuHovered) {
         setShowMenu(false);
+        setMenuHovered(false);
       }
     };
 
     if (showMenu) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showMenu]);
+  }, [showMenu, menuHovered]);
 
   return (
     <div
@@ -655,7 +674,7 @@ const FolderItem: React.FC<{
         </div>
         
         {/* 操作按钮 */}
-        <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className={`flex items-center space-x-1 transition-opacity relative ${showMenu ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -679,16 +698,27 @@ const FolderItem: React.FC<{
             </button>
             {showMenu && (
               <div 
-                className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[120px]"
+                className="folder-menu absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[120px]"
                 style={{
                   // 关键修复：使用极高的 z-index 确保菜单在最上层
                   zIndex: 99999,
+                  // 位于正下方
+                  //top: "100%",
+                  //right: 0,
+                  // 根据父元素位置计算定位
+                  top: "100%", //menuPosition?.top + menuPosition?.height, // + window.scrollY,
+                  //left: menuPosition?.left,
+                  right: 0,
                   // 确保菜单不会被其他元素遮挡
-                  position: 'absolute',
+                  position: 'absolute', //fixed', //'absolute',
                   // 防止菜单影响其他元素的布局
-                  contain: 'layout'
+                  contain: 'paint' //'layout'
                 }}
                 onClick={(e) => e.stopPropagation()} // 防止点击菜单时关闭
+                // 添加新的鼠标事件处理器
+                onMouseDown={(e) => e.stopPropagation()} // 防止触发全局点击检测
+                onMouseEnter={() => setMenuHovered(true)} // 标记菜单悬停状态
+                onMouseLeave={() => setMenuHovered(false)} // 标记菜单离开状态
               >
                 <button
                   onClick={() => {
@@ -758,6 +788,24 @@ const TaskItem: React.FC<{
   setEditing: (id: string | null) => void;
 }> = ({ task, isSelected, onSelect, onDelete, onRename, onDragStart, isEditing, setEditing }) => {
   const [showMenu, setShowMenu] = useState(false);
+  const [menuHovered, setMenuHovered] = useState(false);
+  const [menuPosition, setMenuPosition] = useState<DOMRect | null>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+
+  const handleMenuToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (moreButtonRef.current) {
+      // 获取菜单按钮的位置信息
+      const rect = moreButtonRef.current.getBoundingClientRect();
+      setMenuPosition(rect);
+    }
+    
+    setShowMenu(!showMenu);
+    setMenuHovered(false);
+  };
+
 
   // 修复点击任务时的处理函数，彻底防止页面跳动
   const handleTaskClick = (e: React.MouseEvent) => {
@@ -779,16 +827,18 @@ const TaskItem: React.FC<{
   // 点击其他地方时关闭菜单
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (showMenu) {
+      const menuElement = document.querySelector(".folder-menu, .task-menu");
+      if (menuElement && !menuElement.contains(event.target as Node) && !menuHovered) {
         setShowMenu(false);
+        setMenuHovered(false);
       }
     };
 
     if (showMenu) {
-      document.addEventListener('click', handleClickOutside);
-      return () => document.removeEventListener('click', handleClickOutside);
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
     }
-  }, [showMenu]);
+  }, [showMenu, menuHovered]);
 
   return (
     <div
@@ -843,7 +893,7 @@ const TaskItem: React.FC<{
         )}
       </div>
       
-      <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+      <div className={`flex items-center space-x-1 transition-opacity relative ${showMenu ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         <div className="relative">
           <button
             onClick={(e) => {
@@ -864,16 +914,26 @@ const TaskItem: React.FC<{
           </button>
           {showMenu && (
             <div 
-              className="absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[120px]"
+              className="task-menu absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[120px]"
               style={{
                 // 关键修复：使用极高的 z-index 确保菜单在最上层
                 zIndex: 99999,
+                // 位于按钮下方
+                top: "100%",
+                right: 0,
+                // 根据父元素位置计算定位
+                //top: menuPosition?.top + menuPosition?.height, // + window.scrollY,
+                //left: menuPosition?.left,
                 // 确保菜单不会被其他元素遮挡
-                position: 'absolute',
+                position: 'absolute', //'fixed', //'absolute',
                 // 防止菜单影响其他元素的布局
-                contain: 'layout'
+                contain: 'paint' //'layout'
               }}
               onClick={(e) => e.stopPropagation()} // 防止点击菜单时关闭
+              // 添加新的鼠标事件处理器
+              onMouseDown={(e) => e.stopPropagation()} // 防止触发全局点击检测
+              onMouseEnter={() => setMenuHovered(true)} // 标记菜单悬停状态
+              onMouseLeave={() => setMenuHovered(false)} // 标记菜单离开状态
             >
               <button
                 onClick={(e) => {
