@@ -854,7 +854,7 @@ const TaskItem: React.FC<{
       onClick={handleTaskClick}
       style={{
         // 确保任务项有稳定的布局
-        contain: 'layout style',
+        //contain: 'layout style',
         // 防止点击时的焦点变化导致滚动
         scrollMargin: 0,
         // 确保点击时不会触发页面重排
@@ -862,7 +862,7 @@ const TaskItem: React.FC<{
         // 防止任何可能的布局抖动
         position: 'relative',
         // 设置较低的 z-index，确保不会遮挡菜单
-        zIndex: 1
+        zIndex: isSelected ? 1 : 'auto'
       }}
     >
       <div className="flex items-center space-x-2 flex-1 min-w-0">
@@ -895,7 +895,7 @@ const TaskItem: React.FC<{
         )}
       </div>
       
-      <div className={`flex items-center space-x-1 transition-opacity relative ${showMenu ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+      <div className={`flex items-center space-x-1 transition-opacity relative ${(showMenu) ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
         <div className="relative">
           <button
             onClick={(e) => {
@@ -916,20 +916,20 @@ const TaskItem: React.FC<{
           </button>
           {showMenu && (
             <div 
-              className="task-menu absolute right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[120px]"
+              className="task-menu fixed right-0 top-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg min-w-[120px]"
               style={{
                 // 关键修复：使用极高的 z-index 确保菜单在最上层
                 zIndex: 99999,
                 // 位于按钮下方
-                top: "100%",
-                right: 0,
+                //top: "100%",
+                //right: 0,
                 // 根据父元素位置计算定位
-                //top: menuPosition?.top + menuPosition?.height, // + window.scrollY,
-                //left: menuPosition?.left,
+                top: menuPosition?.top, // + menuPosition?.height, // + window.scrollY,
+                left: menuPosition?.left,
                 // 确保菜单不会被其他元素遮挡
-                position: 'absolute', //'fixed', //'absolute',
+                position: 'fixed', //'fixed', //'absolute',
                 // 防止菜单影响其他元素的布局
-                contain: 'paint' //'layout'
+                //contain: 'paint' //'layout'
               }}
               onClick={(e) => e.stopPropagation()} // 防止点击菜单时关闭
               // 添加新的鼠标事件处理器
