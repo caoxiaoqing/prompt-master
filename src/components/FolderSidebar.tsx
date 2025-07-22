@@ -680,7 +680,8 @@ const FolderItem: React.FC<{
               e.stopPropagation();
               onCreateTask();
             }}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+            className="flex items-center justify-center w-6 h-6 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+            //className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
             title="新建任务"
           >
             <Plus size={12} />
@@ -691,7 +692,8 @@ const FolderItem: React.FC<{
                 e.stopPropagation();
                 setShowMenu(!showMenu);
               }}
-              className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+              className="flex items-center justify-center w-6 h-6 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+              //className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
               title="更多操作"
             >
               <MoreHorizontal size={12} />
@@ -901,7 +903,7 @@ const TaskItem: React.FC<{
               e.preventDefault();
               setShowMenu(!showMenu);
             }}
-            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
+            className="flex items-center justify-center w-6 h-6 hover:bg-gray-200 dark:hover:bg-gray-600 rounded"
             title="更多操作"
             style={{
               // 确保按钮点击不会影响布局
