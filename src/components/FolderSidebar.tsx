@@ -888,7 +888,7 @@ const FolderSidebar: React.FC = () => {
             <FolderItem
               key={folder.id}
               folder={folder}
-              isExpanded={state.expandedFolders.includes(folder.id)}
+              isExpanded={state.expandedFolders.has(folder.id)}
               onToggle={() => dispatch({ type: 'TOGGLE_FOLDER', payload: folder.id })}
               isAnyMenuOpen={isAnyMenuOpen}
               setIsAnyMenuOpen={setIsAnyMenuOpen}
