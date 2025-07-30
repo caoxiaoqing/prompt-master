@@ -429,7 +429,7 @@ img {
   /* 确保点击时不会触发页面重排 */
   transform: translateZ(0) !important;
   /* 设置较低的 z-index，确保不会遮挡菜单 */
-  z-index: 1 !important;
+  z-index: 1;
 }
 
 /* 防止任务项点击时的所有可能的布局变化 */

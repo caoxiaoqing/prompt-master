@@ -429,9 +429,10 @@ const FolderSidebar: React.FC = () => {
 
       {/* Folder Tree - 可滚动区域 */}
       <div className="flex-1 overflow-y-auto p-2">
-        {state.folders.map((folder) => (
+        {state.folders.map((folder, index) => (
           <FolderItem
             key={folder.id}
+            index={index}
             folder={folder}
             tasks={filteredTasks.filter(t => t.folderId === folder.id)}
             isExpanded={state.expandedFolders.has(folder.id)}
@@ -523,6 +524,7 @@ const FolderSidebar: React.FC = () => {
 
 // FolderItem 组件保持不变，只是移除了内部的数据库操作逻辑
 const FolderItem: React.FC<{
+  index: string;
   folder: FolderType;
   tasks: PromptTask[];
   isExpanded: boolean;
@@ -542,6 +544,7 @@ const FolderItem: React.FC<{
   editingTask: string | null;
   setEditingTask: (id: string | null) => void;
 }> = ({
+  index,
   folder,
   tasks,
   isExpanded,
@@ -614,11 +617,13 @@ const FolderItem: React.FC<{
   return (
     <div
       className="mb-1 folder-content"
+      style={{position: 'relative', zIndex: 100 - index}}
       onDragOver={onDragOver}
       onDrop={onDrop}
     >
       {/* Folder Header */}
-      <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg group">
+      <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-lg group"
+        style={{position: 'relative', zIndex: 100 - index}}>
         <div className="flex items-center space-x-2 flex-1 min-w-0">
           {/* 展开/收起按钮 */}
           <button 
@@ -759,8 +764,9 @@ const FolderItem: React.FC<{
             exit={{ opacity: 0, height: 0 }}
             className="ml-6 space-y-1 task-list"
           >
-            {tasks.map((task) => (
+            {tasks.map((task, index) => (
               <TaskItem
+                index={index}
                 key={task.id}
                 task={task}
                 isSelected={currentTaskId === task.id}
@@ -780,6 +786,7 @@ const FolderItem: React.FC<{
 };
 
 const TaskItem: React.FC<{
+  index: string;
   task: PromptTask;
   isSelected: boolean;
   onSelect: () => void;
@@ -788,7 +795,7 @@ const TaskItem: React.FC<{
   onDragStart: () => void;
   isEditing: boolean;
   setEditing: (id: string | null) => void;
-}> = ({ task, isSelected, onSelect, onDelete, onRename, onDragStart, isEditing, setEditing }) => {
+}> = ({index, task, isSelected, onSelect, onDelete, onRename, onDragStart, isEditing, setEditing }) => {
   const [showMenu, setShowMenu] = useState(false);
   const [menuHovered, setMenuHovered] = useState(false);
   const [menuPosition, setMenuPosition] = useState<DOMRect | null>(null);
@@ -844,6 +851,7 @@ const TaskItem: React.FC<{
 
   return (
     <div
+      id={index}
       draggable
       onDragStart={onDragStart}
       className={`task-item flex items-center justify-between p-2 rounded-lg cursor-pointer group transition-colors ${
@@ -862,7 +870,7 @@ const TaskItem: React.FC<{
         // 防止任何可能的布局抖动
         position: 'relative',
         // 设置较低的 z-index，确保不会遮挡菜单
-        zIndex: isSelected ? 1 : 'auto'
+        zIndex: 100 - index
       }}
     >
       <div className="flex items-center space-x-2 flex-1 min-w-0">
