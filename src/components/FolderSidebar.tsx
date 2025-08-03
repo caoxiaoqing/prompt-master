@@ -398,7 +398,7 @@ const FolderSidebar: React.FC = () => {
   };
 
   return (
-    <div className="h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col">
+    <div className="h-full bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex flex-col max-h-screen">
       {/* Header */}
       <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
         <div className="flex items-center justify-between mb-3">
@@ -428,7 +428,7 @@ const FolderSidebar: React.FC = () => {
       </div>
 
       {/* Folder Tree - 可滚动区域 */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-2 min-h-0">
         {state.folders.map((folder, index) => (
           <FolderItem
             key={folder.id}
@@ -456,7 +456,7 @@ const FolderSidebar: React.FC = () => {
       </div>
 
       {/* 底部统计栏 - 显示文件夹数、任务数和数据状态 */}
-      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0 hidden">
+      <div className="bg-gray-50 dark:bg-gray-800 border-t border-gray-200 dark:border-gray-700 px-4 py-2 flex-shrink-0">
         <div className="flex items-center justify-between text-xs">
           {/* 左侧统计信息 */}
           <div className="flex items-center space-x-6">
@@ -481,7 +481,9 @@ const FolderSidebar: React.FC = () => {
           
           {/* 右侧数据状态 */}
           <div className="flex items-center space-x-2">
-            {/* 状态信息已移除 */}
+            <span className="text-gray-500 dark:text-gray-400">
+              {state.isDataLoaded ? '已加载' : '加载中...'}
+            </span>
           </div>
         </div>
       </div>
