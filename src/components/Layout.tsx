@@ -18,6 +18,7 @@ import { useAuth } from '../contexts/AuthContext';
 import StatusBar from './StatusBar';
 import FolderSidebar from './FolderSidebar';
 import UserSettings from './settings/UserSettings';
+import AuthPage from './auth/AuthPage';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -29,7 +30,7 @@ const Layout: React.FC<LayoutProps> = ({ children, showAuthPage = false }) => {
   const { user, userInfo, signOut } = useAuth();
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(true);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   const toggleSidebar = () => {
