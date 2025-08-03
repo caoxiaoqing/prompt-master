@@ -283,7 +283,7 @@ const Layout: React.FC<LayoutProps> = ({ children, showAuthPage = false }) => {
       {/* Auth Modal for unauthenticated users */}
       {showAuthModal && !user && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-modal-backdrop">
-          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-hidden z-modal">
+          <div className="bg-white dark:bg-gray-800 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] overflow-y-auto z-modal">
             <div className="flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700">
               <h2 className="text-xl font-bold text-gray-900 dark:text-white">
                 登录或注册
@@ -295,8 +295,8 @@ const Layout: React.FC<LayoutProps> = ({ children, showAuthPage = false }) => {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6">
-              <AuthPage />
+            <div className="p-6 h-full">
+              <AuthPage isModal={true} />
             </div>
           </div>
         </div>

@@ -6,9 +6,10 @@ import AuthLayout from './AuthLayout'
 
 interface RegisterFormProps {
   onSwitchToLogin: () => void
+  isModal?: boolean
 }
 
-const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
+const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin, isModal }) => {
   const { signUp, loading } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
@@ -117,6 +118,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
       <AuthLayout
         title="注册成功！"
         subtitle="欢迎加入 Prompt Optimizer"
+        isModal={isModal}
       >
         <motion.div
           initial={{ opacity: 0, scale: 0.95 }}
@@ -168,6 +170,7 @@ const RegisterForm: React.FC<RegisterFormProps> = ({ onSwitchToLogin }) => {
     <AuthLayout
       title="创建账户"
       subtitle="加入 Prompt Optimizer，开始优化您的 AI 对话"
+      isModal={isModal}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Error Message */}

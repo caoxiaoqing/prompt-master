@@ -6,9 +6,10 @@ interface AuthLayoutProps {
   children: React.ReactNode
   title: string
   subtitle: string
+  isModal?: boolean
 }
 
-const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) => {
+const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle, isModal }) => {
   const features = [
     {
       icon: Zap,
@@ -33,9 +34,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
   ]
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex">
+    <div className={`${isModal ? 'h-full' : 'min-h-screen'} bg-gradient-to-br from-blue-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-gray-900 flex`}>
       {/* Left Side - Features */}
-      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden">
+      <div className={`${isModal ? 'hidden' : 'hidden lg:flex lg:w-1/2'} relative overflow-hidden`}>
         <div className="absolute inset-0 bg-gradient-to-br from-blue-600/10 to-purple-600/10"></div>
         <div className="relative z-10 flex flex-col justify-center px-12 py-16">
           <motion.div
@@ -88,13 +89,13 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
       </div>
 
       {/* Right Side - Auth Form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12 lg:px-12">
+      <div className={`flex-1 flex items-center justify-center px-6 ${isModal ? 'py-4' : 'py-12 lg:px-12'}`}>
         <div className="w-full max-w-md">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
-            className="text-center mb-8 lg:hidden"
+            className={`text-center ${isModal ? 'mb-4' : 'mb-8 lg:hidden'}`}
           >
             <div className="flex items-center justify-center space-x-3 mb-4">
               <div className="p-2 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg">
@@ -110,9 +111,9 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
-            className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 p-8"
+            className={`bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-200 dark:border-gray-700 ${isModal ? 'p-6' : 'p-8'}`}
           >
-            <div className="text-center mb-8">
+            <div className={`text-center ${isModal ? 'mb-6' : 'mb-8'}`}>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
                 {title}
               </h2>
@@ -128,7 +129,7 @@ const AuthLayout: React.FC<AuthLayoutProps> = ({ children, title, subtitle }) =>
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.5 }}
-            className="text-center mt-6 text-sm text-gray-500 dark:text-gray-400"
+            className={`text-center ${isModal ? 'mt-4 text-xs' : 'mt-6 text-sm'} text-gray-500 dark:text-gray-400`}
           >
             <p>
               使用本服务即表示您同意我们的{' '}

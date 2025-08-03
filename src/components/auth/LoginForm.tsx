@@ -6,9 +6,10 @@ import AuthLayout from './AuthLayout'
 
 interface LoginFormProps {
   onSwitchToRegister: () => void
+  isModal?: boolean
 }
 
-const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
+const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister, isModal }) => {
   const { signIn, loading } = useAuth()
   const [formData, setFormData] = useState({
     email: '',
@@ -101,6 +102,7 @@ const LoginForm: React.FC<LoginFormProps> = ({ onSwitchToRegister }) => {
     <AuthLayout
       title="欢迎回来"
       subtitle="登录您的账户，继续优化您的 AI 提示词"
+      isModal={isModal}
     >
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Error Message - 严重错误 */}
