@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, ReactNode } from
 import { User, Session } from '@supabase/supabase-js'
 import { authService, UserInfo } from '../lib/supabase'
 import { TaskService } from '../lib/taskService'
+import { useLocalStorage } from '../hooks/useLocalStorage';
 
 interface AuthContextType {
   user: User | null
@@ -36,6 +37,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   const [loading, setLoading] = useState(true)
   const [isInitialized, setIsInitialized] = useState(false)
   const [dataRefreshTrigger, setDataRefreshTrigger] = useState(0)
+  const { clearLocalStorage } = useLocalStorage(); 
 
   useEffect(() => {
     let isMounted = true
@@ -272,6 +274,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
       setLoading(true)
       
       await authService.signOut()
+      clearLocalStorage();
       
       // 立即清除本地状态
       setUser(null)
