@@ -809,8 +809,8 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
             {/* 模板建议区域，仅在 prompt 为空且有模板时显示 */}
             {showTemplateSuggestions && promptTemplates.length > 0 && (
               <div className="p-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 flex-shrink-0"> {/* 改动点 3: 添加 border-t 和 flex-shrink-0 */}
-                <h3 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">
-                  选择一个 Prompt 模板
+                <h3 className="text-sm font-semibold mb-4 text-gray-900 dark:text-white">
+                  或者你可以选择一个 Prompt 模板开始
                 </h3>
                 {/* 模板横向滚动容器 */}
                 <div className="flex overflow-x-auto space-x-4 pb-2"> {/* 改动点 3: 修改为 flex, overflow-x-auto, space-x-4, pb-2 */}
@@ -823,10 +823,10 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
                       onClick={() => handleSelectTemplate(template.content)}
                       className="flex-shrink-0 w-64 p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" // 改动点 3: 添加 flex-shrink-0 和 w-64
                     >
-                      <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-1">
+                      <h4 className="text-sm font-medium text-blue-600 dark:text-blue-400 mb-1">
                         {template.name}
                       </h4>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                      <p className="text-xs text-gray-600 dark:text-gray-400 line-clamp-3">
                         {template.content}
                       </p>
                       <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
@@ -852,9 +852,9 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
                     onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'community' })}
                     className="flex-shrink-0 w-64 p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors flex flex-col items-center justify-center text-center text-blue-600 dark:text-blue-400" // 改动点 3: 样式调整
                   >
-                    <ChevronRight size={32} className="mb-2" />
-                    <span className="font-medium">查看更多模板</span>
-                    <p className="text-sm text-gray-500">前往 Prompt 社区</p>
+                    <ChevronRight size={16} className="mb-2" />
+                    <span className="font-medium text-sm">查看更多模板</span>
+                    <p className="text-sm text-gray-500 text-xs">前往 Prompt 社区</p>
                   </motion.div>
                 </div>
               </div>
