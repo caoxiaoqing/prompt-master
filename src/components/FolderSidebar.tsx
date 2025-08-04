@@ -800,6 +800,7 @@ const TaskItem: React.FC<{
   const [menuHovered, setMenuHovered] = useState(false);
   const [menuPosition, setMenuPosition] = useState<DOMRect | null>(null);
   const moreButtonRef = useRef<HTMLButtonElement>(null);
+  const {dispatch} = useApp();
 
   const handleMenuToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -826,6 +827,8 @@ const TaskItem: React.FC<{
     if (document.activeElement && 'blur' in document.activeElement) {
       (document.activeElement as HTMLElement).blur();
     }
+
+    dispatch({ type: 'SET_ACTIVE_TAB', payload: 'editor' })
     
     // 使用 requestAnimationFrame 确保在下一帧执行，避免同步布局变化
     requestAnimationFrame(() => {

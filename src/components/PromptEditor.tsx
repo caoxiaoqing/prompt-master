@@ -35,6 +35,7 @@ import { PromptVersion, ChatMessage } from '../types';
 import ChatInterface from './ChatInterface';
 import ModelSettingsModal from './ModelSettingsModal';
 import { format } from 'date-fns';
+import { getPromptTemplates } from '../lib/promptService';
 
 const PromptEditor: React.FC = () => {
   const { state, dispatch } = useApp();
@@ -50,6 +51,9 @@ const PromptEditor: React.FC = () => {
   const [currentChatHistory, setCurrentChatHistory] = useState<ChatMessage[]>([]);
   const [currentLoadedVersion, setCurrentLoadedVersion] = useState<PromptVersion | null>(null);
   const { saveToLocalStorage } = useLocalStorage();
+  const [promptTemplates, setPromptTemplates] = useState<any[]>([]);
+  const [showTemplateSuggestions, setShowTemplateSuggestions] = useState(false);
+
 
   // 获取当前任务的模型参数
   const onSystemPromptChange = (newPrompt: string) => {
@@ -74,6 +78,24 @@ const PromptEditor: React.FC = () => {
       console.log('模型参数已更新:', params);
     }
   });
+
+  useEffect(() => {
+    if (!prompt.trim()) {
+      setShowTemplateSuggestions(true);
+      const fetchTemplates = async () => {
+        try {
+          const templates = await getPromptTemplates(3); // Fetch 5 templates
+          setPromptTemplates(templates);
+        } catch (error) {
+          console.error('Failed to fetch prompt templates:', error);
+          setPromptTemplates([]); // Clear templates on error
+        }
+      };
+      fetchTemplates();
+    } else {
+      setShowTemplateSuggestions(false);
+    }
+  }, [prompt]);
 
   // 当选择新任务时，更新编辑器内容
   useEffect(() => {
@@ -588,6 +610,20 @@ const PromptEditor: React.FC = () => {
   const versionInfo = getCurrentVersionInfo();
   const saveButtonState = getSaveButtonState();
 
+  const handleSelectTemplate = (content: string) => {
+    setPrompt(content);
+    setShowTemplateSuggestions(false); // Hide suggestions after selection
+    // Optionally, save the new prompt to the current task immediately
+    if (state.currentTask) {
+      const updatedTask = {
+        ...state.currentTask,
+        content: content,
+        updatedAt: new Date()
+      };
+      dispatch({ type: 'UPDATE_TASK', payload: updatedTask });
+    }
+  };
+
   return (
     <div className="h-full flex flex-col">
       {/* Toolbar */}
@@ -745,6 +781,78 @@ const PromptEditor: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* <textarea
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder="在这里输入你的system prompt...
+
+例如：
+You are a helpful AI assistant. Please provide clear, accurate, and helpful responses to user questions. Always be polite and professional."
+            className="flex-1 p-4 bg-white dark:bg-gray-900 resize-none focus:outline-none text-sm leading-relaxed"
+            onBlur={() => {
+              if (state.currentTask && prompt !== state.currentTask.content) {
+                dispatch({
+                  type: 'UPDATE_TASK',
+                  payload: {
+                    ...state.currentTask,
+                    content: prompt,
+                    updatedAt: new Date()
+                  }
+                });
+              }
+            }}
+          /> */}
+
+          {showTemplateSuggestions && promptTemplates.length > 0 ? (
+            <div className="flex-1 p-4 overflow-y-auto bg-white dark:bg-gray-900">
+            <h3 className="text-center text-sm font-semibold mb-4 text-gray-900 dark:text-white">
+              选择一个 Prompt 模板
+            </h3>
+            <div className="space-y-4">
+              {promptTemplates.map((template) => (
+                <motion.div
+                  key={template.id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  whileHover={{ scale: 1.01 }}
+                  onClick={() => handleSelectTemplate(template.content)}
+                  className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors"
+                >
+                  <h4 className="font-medium text-blue-600 dark:text-blue-400 mb-1">
+                    {template.name}
+                  </h4>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-3">
+                    {template.content}
+                  </p>
+                  <div className="flex items-center space-x-2 text-xs text-gray-500 mt-2">
+                    {template.category && (
+                      <span className="px-2 py-0.5 bg-gray-100 dark:bg-gray-600 rounded-full">
+                        {template.category}
+                      </span>
+                    )}
+                    {template.likes > 0 && (
+                      <span className="flex items-center space-x-1">
+                        <Star size={12} />
+                        <span>{template.likes}</span>
+                      </span>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="mt-6 text-center">
+              <button
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'community' })}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center justify-center mx-auto space-x-2"
+              >
+                <span>查看更多模板</span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+          ) : (
+
           <textarea
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -766,6 +874,7 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
               }
             }}
           />
+        )}
         </div>
 
         {/* Chat Interface */}

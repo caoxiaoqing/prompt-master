@@ -16,7 +16,7 @@ interface AppState {
   selectedCustomModel: any | null; // 当前选中的自定义模型配置
   theme: 'light' | 'dark';
   sidebarOpen: boolean;
-  activeTab: 'editor' | 'versions' | 'analytics' | 'tests';
+  activeTab: 'editor' | 'versions' | 'analytics' | 'tests' | 'community';
   
   // 新增的文件夹和任务状态
   folders: Folder[];

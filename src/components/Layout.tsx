@@ -19,6 +19,8 @@ import StatusBar from './StatusBar';
 import FolderSidebar from './FolderSidebar';
 import UserSettings from './settings/UserSettings';
 import AuthPage from './auth/AuthPage';
+import PromptCommunity from './PromptCommunity';
+
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -118,6 +120,27 @@ const Layout: React.FC<LayoutProps> = ({ children, showAuthPage = false }) => {
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Prompt Optimizer
               </h1>
+
+              <button
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'editor' })}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  state.activeTab === 'editor'
+                    ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                编辑器
+              </button>
+              <button
+                onClick={() => dispatch({ type: 'SET_ACTIVE_TAB', payload: 'community' })}
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-colors ${
+                  state.activeTab === 'community'
+                    ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700'
+                }`}
+              >
+                社区
+              </button>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -267,7 +290,8 @@ const Layout: React.FC<LayoutProps> = ({ children, showAuthPage = false }) => {
             }}
           >
             <div className="flex-1 overflow-hidden">
-              {children}
+              {state.activeTab === 'editor' && children}
+              {state.activeTab === 'community' && <PromptCommunity />}
             </div>
             {/* Status Bar */}
             <StatusBar />
