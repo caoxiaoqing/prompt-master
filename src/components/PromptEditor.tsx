@@ -782,7 +782,7 @@ const PromptEditor: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-white dark:bg-gray-900">
+          <div className="flex-1 flex flex-col overflow-y-auto bg-white dark:bg-gray-900">
             {/* textarea 始终显示 */}
             <textarea
               value={prompt}
@@ -791,7 +791,9 @@ const PromptEditor: React.FC = () => {
 
 例如：
 You are a helpful AI assistant. Please provide clear, accurate, and helpful responses to user questions. Always be polite and professional."
-              className="w-full p-4 bg-white dark:bg-gray-900 resize-none focus:outline-none text-sm leading-relaxed min-h-[200px]" // 改动点 3: 移除 flex-1，添加 min-h-[200px]
+              className={`w-full p-4 bg-white dark:bg-gray-900 resize-none focus:outline-none text-sm leading-relaxed ${
+                showTemplateSuggestions ? 'min-h-[200px]' : 'flex-1' // 改动点 2: 根据 showTemplateSuggestions 动态应用高度样式
+              }`}
               onBlur={() => {
                 if (state.currentTask && prompt !== state.currentTask.content) {
                   dispatch({
