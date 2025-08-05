@@ -98,6 +98,48 @@ body {
   background: rgba(75, 85, 99, 0.8);
 }
 
+/* 隐藏模板区域的滚动条 */
+.scrollbar-hide {
+  /* 对于 Webkit 浏览器（Chrome, Safari, Edge） */
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* IE 和 Edge */
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none; /* Webkit 浏览器 */
+}
+
+/* 可选：如果想要半透明的滚动条而不是完全隐藏 */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(156, 163, 175, 0.3) transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.3);
+  border-radius: 2px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.5);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(75, 85, 99, 0.3);
+}
+
+.dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(75, 85, 99, 0.5);
+}
 /* 防止文本选择时的布局变化 */
 ::selection {
   background-color: rgba(59, 130, 246, 0.3);

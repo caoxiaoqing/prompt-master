@@ -813,7 +813,7 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
                   或者你可以选择一个 Prompt 模板开始
                 </h3>
                 {/* 模板横向滚动容器 */}
-                <div className="flex overflow-x-auto space-x-4 pb-2"> {/* 改动点 3: 修改为 flex, overflow-x-auto, space-x-4, pb-2 */}
+                <div className="flex overflow-x-auto space-x-4 pb-2 scrollbar-hide"> {/* 改动点: 添加 scrollbar-hide 类 */}
                   {promptTemplates.map((template) => (
                     <motion.div
                       key={template.id}
@@ -844,7 +844,7 @@ You are a helpful AI assistant. Please provide clear, accurate, and helpful resp
                       </div>
                     </motion.div>
                   ))}
-                  {/* 改动点 3: “查看更多模板”卡片 */}
+                  {/* 改动点 3: "查看更多模板"卡片 */}
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
