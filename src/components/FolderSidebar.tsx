@@ -428,7 +428,7 @@ const FolderSidebar: React.FC = () => {
       </div>
 
       {/* Folder Tree - 可滚动区域 */}
-      <div className="flex-1 overflow-y-auto p-2">
+      <div className="flex-1 overflow-y-auto p-2 scrollable-div">
         {state.folders.map((folder, index) => (
           <FolderItem
             key={folder.id}

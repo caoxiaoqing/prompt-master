@@ -25,7 +25,7 @@ body {
 
 /* 确保所有容器都有稳定的布局 */
 #root {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
   /* 防止内容变化时的布局抖动 */
@@ -97,6 +97,23 @@ body {
 .dark .chat-messages-container::-webkit-scrollbar-thumb:hover {
   background: rgba(75, 85, 99, 0.8);
 }
+
+.min-h-screen{
+  height: 100vh;
+  min-height: auto;
+
+}
+
+.scrollable-div {
+  overflow-y: scroll;
+  scrollbar-width: none;
+  ms-overflow-style: none;
+}
+
+.scrollable-div::-webkit-scrollbar {
+  display:none;
+}
+
 
 /* 隐藏模板区域的滚动条 */
 .scrollbar-hide {
